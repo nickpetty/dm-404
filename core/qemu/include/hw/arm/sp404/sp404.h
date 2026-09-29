@@ -342,11 +342,34 @@ void imxrt_sai_kick(IMXRTSAI *s);
 void imxrt_sai_start_precise_clock(IMXRTSAI *s);
 
 /*
+ * The BMC's sound engine (effects and the final mix), core/fx loaded at run
+ * time (sp404-fx.c). Without it the mix stays dry.
+ */
+typedef struct SP404Fx {
+    void *engine;
+    void (*dt1)(void *fx, const uint8_t *addr, const uint8_t *data, int len);
+    void (*process)(void *fx, const float *stems, const float *in,
+                    float *out, int frames);
+    int (*slot)(void *fx, int slot, int *on);
+    uint8_t sysex[64];
+    unsigned sysex_len;
+} SP404Fx;
+
+void sp404_fx_init(SP404Fx *e);
+/* A USB-MIDI packet the firmware sends the BMC (SysEx parameter writes). */
+void sp404_fx_midi(SP404Fx *e, const uint8_t *pkt);
+bool sp404_fx_active(SP404Fx *e);
+/* One frame: 8 stems (TX line 3 words 0-7), 2 inputs in, 2 out. */
+void sp404_fx_process(SP404Fx *e, const float *stems, const float *in,
+                      float *out);
+
+/*
  * The SP-404's audio path as seen from the SAI: TX line 3 carries the
- * mix to the main outputs, and RX line 0 brings back the inputs plus the
- * resampling loopback.
+ * buses to the BMC, which mixes them to the main outputs, and RX line 0
+ * brings back the inputs plus the resampling loopback.
  */
 typedef struct SP404Audio {
+    SP404Fx *fx;                /* the BMC's effects, if loaded */
     FILE *wav;
     uint64_t wav_frames;
     int32_t slot_peak[4][16];
@@ -375,6 +398,7 @@ typedef struct SP404Link SP404Link;
 typedef struct SP404BMC {
     IMXRTLPUART *uart;
     SP404Link *link;            /* copies of what the firmware sends */
+    SP404Fx *fx;                /* gets the effect parameter writes */
     uint8_t pkt[4];
     unsigned pkt_len;
 } SP404BMC;

@@ -10,6 +10,7 @@ arm_common_ss.add(when: 'CONFIG_SP404MK2', if_true: files(
   'ssd1309.c',
   'imxrt-sai.c',
   'sp404-audio.c',
+  'sp404-fx.c',
   'imxrt-pit.c',
   'imxrt-xbar.c',
   'imxrt-adc.c',

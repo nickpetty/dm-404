@@ -1,0 +1,4014 @@
+[
+ {
+  "id": 1,
+  "name": "Filter+Drive",
+  "ctrl": [
+   "CUTOFF",
+   "RESONANCE",
+   "DRIVE"
+  ],
+  "params": [
+   {
+    "name": "CUTOFF",
+    "addr": 0,
+    "default": {
+     "0": 146,
+     "1": 146,
+     "2": 146,
+     "3": 146,
+     "4": 146
+    },
+    "max": 255
+   },
+   {
+    "name": "RESONANCE",
+    "addr": 2,
+    "default": {
+     "0": 4,
+     "1": 4,
+     "2": 4,
+     "3": 4,
+     "4": 4
+    },
+    "max": 255
+   },
+   {
+    "name": "DRIVE",
+    "addr": 4,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "FLT TYPE",
+    "addr": 6,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "name": "LOW FREQ",
+    "addr": 8,
+    "default": {
+     "0": 88,
+     "1": 88,
+     "2": 88,
+     "3": 88,
+     "4": 88
+    }
+   },
+   {
+    "name": "LOW GAIN",
+    "addr": 10,
+    "default": {
+     "0": 24,
+     "1": 24,
+     "2": 24,
+     "3": 24,
+     "4": 24
+    }
+   },
+   {
+    "name": "LEVEL",
+    "addr": 12,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 2,
+  "name": "TimeCtrlDly",
+  "ctrl": [
+   "TIME",
+   "FEEDBACK",
+   "LEVEL"
+  ],
+  "params": [
+   {
+    "name": "SYNC",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "LEVEL",
+    "addr": 2,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "TIME",
+    "addr": 4,
+    "default": {
+     "0": 78,
+     "1": 78,
+     "2": 78,
+     "3": 78,
+     "4": 78
+    },
+    "max": 255
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "HIGH CUT",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "HIGH DAMP",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "H DAMP F",
+    "addr": 12,
+    "default": {
+     "0": 13,
+     "1": 13,
+     "2": 13,
+     "3": 13,
+     "4": 13
+    }
+   },
+   {
+    "name": "LOW DAMP",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "L DAMP F",
+    "addr": 16,
+    "default": {
+     "0": 8,
+     "1": 8,
+     "2": 8,
+     "3": 8,
+     "4": 8
+    }
+   }
+  ]
+ },
+ {
+  "id": 3,
+  "name": "Isolator",
+  "ctrl": [
+   "LOW",
+   "MID",
+   "HIGH"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "LOW",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "MID",
+    "addr": 4,
+    "default": {
+     "0": 222,
+     "1": 222,
+     "2": 222,
+     "3": 190,
+     "4": 190
+    },
+    "max": 255
+   },
+   {
+    "name": "HIGH",
+    "addr": 6,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   }
+  ]
+ },
+ {
+  "id": 4,
+  "name": "Crusher",
+  "ctrl": [
+   "FILTER",
+   "RATE",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "RATE",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "FILTER",
+    "addr": 4,
+    "default": {
+     "0": 100,
+     "1": 100,
+     "2": 100,
+     "3": 100,
+     "4": 100
+    },
+    "max": 255
+   }
+  ]
+ },
+ {
+  "id": 5,
+  "name": "Phaser",
+  "ctrl": [
+   "DEPTH",
+   "RATE",
+   "MANUAL"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "RATE",
+    "addr": 2,
+    "default": {
+     "0": 64,
+     "1": 64,
+     "2": 64,
+     "3": 64,
+     "4": 64
+    },
+    "max": 255
+   },
+   {
+    "name": "DEPTH",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "RESONANCE",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "MANUAL",
+    "addr": 8,
+    "default": {
+     "0": 180,
+     "1": 180,
+     "2": 180,
+     "3": 180,
+     "4": 180
+    },
+    "max": 255
+   },
+   {
+    "name": "TYPE",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "SYNC",
+    "addr": 12,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   }
+  ]
+ },
+ {
+  "id": 6,
+  "name": "Flanger",
+  "ctrl": [
+   "DEPTH",
+   "RATE",
+   "MANUAL"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "RATE",
+    "addr": 2,
+    "default": {
+     "0": 24,
+     "1": 24,
+     "2": 24,
+     "3": 24,
+     "4": 24
+    },
+    "max": 255
+   },
+   {
+    "name": "DEPTH",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "RESONANCE",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "MANUAL",
+    "addr": 8,
+    "default": {
+     "0": 180,
+     "1": 180,
+     "2": 180,
+     "3": 180,
+     "4": 180
+    },
+    "max": 255
+   },
+   {
+    "name": "LOW CUT F",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "MODE",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "SYNC",
+    "addr": 14,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   }
+  ]
+ },
+ {
+  "id": 7,
+  "name": "Overdrive",
+  "ctrl": [
+   "DRIVE",
+   "TONE",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "DRIVE",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "TONE",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 6,
+    "default": {
+     "0": 212,
+     "1": 212,
+     "2": 212,
+     "3": 212,
+     "4": 212
+    }
+   }
+  ]
+ },
+ {
+  "id": 8,
+  "name": "Distortion",
+  "ctrl": [
+   "DRIVE",
+   "TONE",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "DRIVE",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "TONE",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   }
+  ]
+ },
+ {
+  "id": 9,
+  "name": "Tape Echo",
+  "ctrl": [
+   "TIME",
+   "FEEDBACK",
+   "LEVEL"
+  ],
+  "params": [
+   {
+    "name": "SYNC",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "TIME",
+    "addr": 4,
+    "default": {
+     "0": 172,
+     "1": 172,
+     "2": 172,
+     "3": 172,
+     "4": 172
+    },
+    "max": 255
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 6,
+    "default": {
+     "0": 120,
+     "1": 120,
+     "2": 120,
+     "3": 120,
+     "4": 120
+    },
+    "max": 255
+   },
+   {
+    "name": "MODE",
+    "addr": 8,
+    "default": {
+     "0": 3,
+     "1": 6,
+     "2": 6,
+     "3": 3,
+     "4": 3
+    }
+   },
+   {
+    "name": "BASS",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "TREBLE",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "PAN S",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "PAN M",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "PAN L",
+    "addr": 18,
+    "default": null
+   },
+   {
+    "name": "TAPE DIST",
+    "addr": 20,
+    "default": null
+   },
+   {
+    "name": "W/F RATE",
+    "addr": 22,
+    "default": {
+     "0": 128,
+     "1": 0,
+     "2": 0,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "W/F DEPTH",
+    "addr": 24,
+    "default": {
+     "0": 128,
+     "1": 0,
+     "2": 0,
+     "3": 128,
+     "4": 128
+    }
+   }
+  ]
+ },
+ {
+  "id": 10,
+  "name": "Reverb",
+  "ctrl": [
+   "TYPE",
+   "TIME",
+   "LEVEL"
+  ],
+  "params": [
+   {
+    "name": "TYPE",
+    "addr": 0,
+    "default": {
+     "0": 2,
+     "1": 2,
+     "2": 2,
+     "3": 2,
+     "4": 2
+    },
+    "max": 3
+   },
+   {
+    "name": "TIME",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 200,
+     "2": 200,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 4,
+    "default": {
+     "0": 100,
+     "1": 128,
+     "2": 128,
+     "3": 100,
+     "4": 100
+    },
+    "max": 255
+   },
+   {
+    "name": "PRE DELAY",
+    "addr": 6,
+    "default": {
+     "0": 5,
+     "1": 5,
+     "2": 5,
+     "3": 8,
+     "4": 8
+    }
+   },
+   {
+    "name": "LOW CUT",
+    "addr": 8,
+    "default": {
+     "0": 14,
+     "1": 14,
+     "2": 14,
+     "3": 17,
+     "4": 17
+    }
+   },
+   {
+    "name": "HIGH CUT",
+    "addr": 10,
+    "default": {
+     "0": 11,
+     "1": 11,
+     "2": 11,
+     "3": 11,
+     "4": 11
+    }
+   },
+   {
+    "name": "DENSITY",
+    "addr": 12,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 11,
+  "name": "WrmSaturator",
+  "ctrl": [
+   "DRIVE",
+   "EQ LOW",
+   "EQ HIGH"
+  ],
+  "params": [
+   {
+    "name": "LOW FREQ",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "LOW GAIN",
+    "addr": 2,
+    "default": null
+   },
+   {
+    "name": "HI SLOPE",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "HI FREQ",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "PRE1 TYPE",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "PRE1 FREQ",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "PRE1 GAIN",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "DRIVE",
+    "addr": 14,
+    "default": {
+     "0": 24,
+     "1": 33,
+     "2": 33,
+     "3": 24,
+     "4": 24
+    },
+    "max": 48
+   },
+   {
+    "name": "PST1 TYPE",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "PST1 FREQ",
+    "addr": 18,
+    "default": null
+   },
+   {
+    "name": "EQ LOW",
+    "addr": 20,
+    "default": {
+     "0": 34,
+     "1": 36,
+     "2": 36,
+     "3": 34,
+     "4": 34
+    },
+    "max": 48
+   },
+   {
+    "name": "PST2 TYPE",
+    "addr": 22,
+    "default": null
+   },
+   {
+    "name": "PST2 FREQ",
+    "addr": 24,
+    "default": null
+   },
+   {
+    "name": "EQ HIGH",
+    "addr": 26,
+    "default": {
+     "0": 29,
+     "1": 24,
+     "2": 24,
+     "3": 29,
+     "4": 29
+    },
+    "max": 48
+   },
+   {
+    "name": "PST3 TYPE",
+    "addr": 28,
+    "default": null
+   },
+   {
+    "name": "PST3 FREQ",
+    "addr": 30,
+    "default": null
+   },
+   {
+    "name": "PST3 GAIN",
+    "addr": 32,
+    "default": null
+   },
+   {
+    "name": "PST3 Q",
+    "addr": 34,
+    "default": null
+   },
+   {
+    "name": "SENSE",
+    "addr": 36,
+    "default": null
+   },
+   {
+    "name": "POST GAIN",
+    "addr": 38,
+    "default": null
+   },
+   {
+    "name": "BALANCE",
+    "addr": 40,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 42,
+    "default": {
+     "0": 116,
+     "1": 116,
+     "2": 116,
+     "3": 132,
+     "4": 132
+    }
+   }
+  ]
+ },
+ {
+  "id": 12,
+  "name": "Resonator",
+  "ctrl": [
+   "ROOT",
+   "BRIGHT",
+   "FEEDBACK"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "PANNING",
+    "addr": 2,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "LOW CUT F",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "ROOT",
+    "addr": 6,
+    "default": {
+     "0": 40,
+     "1": 40,
+     "2": 40,
+     "3": 40,
+     "4": 40
+    },
+    "max": 127
+   },
+   {
+    "name": "CHORD",
+    "addr": 8,
+    "default": {
+     "0": 6,
+     "1": 6,
+     "2": 6,
+     "3": 6,
+     "4": 6
+    }
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 10,
+    "default": {
+     "0": 100,
+     "1": 100,
+     "2": 100,
+     "3": 100,
+     "4": 100
+    },
+    "max": 255
+   },
+   {
+    "name": "BRIGHT",
+    "addr": 12,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "ENV MOD",
+    "addr": 14,
+    "default": {
+     "0": 10,
+     "1": 10,
+     "2": 10,
+     "3": 10,
+     "4": 10
+    }
+   }
+  ]
+ },
+ {
+  "id": 13,
+  "name": "DJFX Looper",
+  "ctrl": [
+   "LENGTH",
+   "SPEED",
+   "LOOP SW"
+  ],
+  "params": [
+   {
+    "name": "LENGTH",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "SPEED",
+    "addr": 2,
+    "default": {
+     "0": 200,
+     "1": 200,
+     "2": 200,
+     "3": 200,
+     "4": 200
+    },
+    "max": 200
+   },
+   {
+    "name": "LOOP SW",
+    "addr": 4,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 1
+   },
+   {
+    "name": "LEVEL",
+    "addr": 6,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 14,
+  "name": "Chorus",
+  "ctrl": [
+   "DEPTH",
+   "RATE",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "RATE",
+    "addr": 0,
+    "default": {
+     "0": 96,
+     "1": 96,
+     "2": 96,
+     "3": 96,
+     "4": 96
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 2,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "BALANCE",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "DEPTH",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "EQ LOW",
+    "addr": 8,
+    "default": {
+     "0": 15,
+     "1": 15,
+     "2": 15,
+     "3": 15,
+     "4": 15
+    }
+   },
+   {
+    "name": "EQ HIGH",
+    "addr": 10,
+    "default": {
+     "0": 15,
+     "1": 15,
+     "2": 15,
+     "3": 15,
+     "4": 15
+    }
+   }
+  ]
+ },
+ {
+  "id": 15,
+  "name": "JUNO Chorus",
+  "ctrl": [
+   "MODE",
+   "NOISE",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "MODE",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 4
+   },
+   {
+    "name": "NOISE",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 32,
+     "4": 32
+    },
+    "max": 255
+   },
+   {
+    "name": "BALANCE",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 6,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 16,
+  "name": "Tremolo/Pan",
+  "ctrl": [
+   "DEPTH",
+   "RATE",
+   "TYPE"
+  ],
+  "params": [
+   {
+    "name": "TYPE",
+    "addr": 0,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    },
+    "max": 1
+   },
+   {
+    "name": "WAVE",
+    "addr": 2,
+    "default": {
+     "0": 5,
+     "1": 5,
+     "2": 5,
+     "3": 5,
+     "4": 5
+    }
+   },
+   {
+    "name": "SYNC",
+    "addr": 4,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "name": "RATE",
+    "addr": 6,
+    "default": {
+     "0": 178,
+     "1": 178,
+     "2": 178,
+     "3": 178,
+     "4": 178
+    },
+    "max": 255
+   },
+   {
+    "name": "DEPTH",
+    "addr": 8,
+    "default": {
+     "0": 220,
+     "1": 220,
+     "2": 220,
+     "3": 220,
+     "4": 220
+    },
+    "max": 255
+   },
+   {
+    "name": "EQ LOW",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "EQ HIGH",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "PHASE",
+    "addr": 16,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 17,
+  "name": "Wah",
+  "ctrl": [
+   "PEAK",
+   "RATE",
+   "MANUAL"
+  ],
+  "params": [
+   {
+    "name": "FLT TYPE",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "MANUAL",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "PEAK",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "SYNC",
+    "addr": 6,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "name": "RATE",
+    "addr": 8,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "BALANCE",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "DEPTH",
+    "addr": 12,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "EQ LOW",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "EQ HIGH",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 18,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 18,
+  "name": "Sync Delay",
+  "ctrl": [
+   "TIME",
+   "FEEDBACK",
+   "LEVEL"
+  ],
+  "params": [
+   {
+    "name": "LEVEL",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "TIME",
+    "addr": 2,
+    "default": {
+     "0": 5,
+     "1": 5,
+     "2": 5,
+     "3": 5,
+     "4": 5
+    },
+    "max": 15
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "HIGH CUT",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "HIGH DAMP",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "H DAMP F",
+    "addr": 10,
+    "default": {
+     "0": 14,
+     "1": 14,
+     "2": 14,
+     "3": 14,
+     "4": 14
+    }
+   },
+   {
+    "name": "LOW DAMP",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "L DAMP F",
+    "addr": 14,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 19,
+  "name": "Equalizer",
+  "ctrl": [
+   "LOW GAIN",
+   "MID GAIN",
+   "HIGH GAIN"
+  ],
+  "params": [
+   {
+    "name": "LOW FREQ",
+    "addr": 0,
+    "default": {
+     "0": 10,
+     "1": 10,
+     "2": 10,
+     "3": 10,
+     "4": 10
+    }
+   },
+   {
+    "name": "LOW GAIN",
+    "addr": 2,
+    "default": {
+     "0": 15,
+     "1": 10,
+     "2": 10,
+     "3": 15,
+     "4": 15
+    },
+    "max": 30
+   },
+   {
+    "name": "MID FREQ",
+    "addr": 4,
+    "default": {
+     "0": 7,
+     "1": 7,
+     "2": 7,
+     "3": 7,
+     "4": 7
+    }
+   },
+   {
+    "name": "MID GAIN",
+    "addr": 6,
+    "default": {
+     "0": 15,
+     "1": 20,
+     "2": 20,
+     "3": 15,
+     "4": 15
+    },
+    "max": 30
+   },
+   {
+    "name": "MID Q",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "MID2 FREQ",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "MID2 GAIN",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "MID2 Q",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "HIGH FREQ",
+    "addr": 16,
+    "default": {
+     "0": 3,
+     "1": 3,
+     "2": 3,
+     "3": 3,
+     "4": 3
+    }
+   },
+   {
+    "name": "HIGH GAIN",
+    "addr": 18,
+    "default": {
+     "0": 15,
+     "1": 10,
+     "2": 10,
+     "3": 15,
+     "4": 15
+    },
+    "max": 30
+   },
+   {
+    "name": "LEVEL",
+    "addr": 20,
+    "default": null
+   },
+   {
+    "name": "BALANCE",
+    "addr": 22,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 20,
+  "name": "Lo-fi",
+  "ctrl": [
+   "PRE FILT",
+   "LOFI TYPE",
+   "TONE"
+  ],
+  "params": [
+   {
+    "name": "PRE FILT",
+    "addr": 0,
+    "default": {
+     "0": 5,
+     "1": 1,
+     "2": 1,
+     "3": 5,
+     "4": 5
+    },
+    "max": 5
+   },
+   {
+    "name": "LOFI TYPE",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 4,
+     "2": 4,
+     "3": 0,
+     "4": 0
+    },
+    "max": 8
+   },
+   {
+    "name": "POST FILT",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "CUTOFF",
+    "addr": 6,
+    "default": {
+     "0": 13,
+     "1": 13,
+     "2": 13,
+     "3": 16,
+     "4": 16
+    }
+   },
+   {
+    "name": "BALANCE",
+    "addr": 8,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "LEVEL",
+    "addr": 10,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "TONE",
+    "addr": 12,
+    "default": {
+     "0": 106,
+     "1": 128,
+     "2": 128,
+     "3": 106,
+     "4": 106
+    },
+    "max": 255
+   }
+  ]
+ },
+ {
+  "id": 21,
+  "name": "Ring Mod",
+  "ctrl": [
+   "FREQUENCY",
+   "SENS",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "FREQUENCY",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "SENS",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "POLARITY",
+    "addr": 4,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "EQ LOW",
+    "addr": 6,
+    "default": {
+     "0": 15,
+     "1": 15,
+     "2": 15,
+     "3": 15,
+     "4": 15
+    }
+   },
+   {
+    "name": "EQ HIGH",
+    "addr": 8,
+    "default": {
+     "0": 15,
+     "1": 15,
+     "2": 15,
+     "3": 15,
+     "4": 15
+    }
+   },
+   {
+    "name": "BALANCE",
+    "addr": 10,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 12,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 22,
+  "name": "Chromatic PS",
+  "ctrl": [
+   "PITCH1",
+   "PITCH2",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "PITCH1",
+    "addr": 0,
+    "default": {
+     "0": 19,
+     "1": 19,
+     "2": 19,
+     "3": 19,
+     "4": 19
+    },
+    "max": 36
+   },
+   {
+    "name": "FINE1",
+    "addr": 2,
+    "default": null
+   },
+   {
+    "name": "PAN1",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "LEVEL1",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "PITCH2",
+    "addr": 8,
+    "default": {
+     "0": 31,
+     "1": 31,
+     "2": 31,
+     "3": 31,
+     "4": 31
+    },
+    "max": 36
+   },
+   {
+    "name": "FINE2",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "PAN2",
+    "addr": 12,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "LEVEL2",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "EQ LOW",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "EQ HIGH",
+    "addr": 18,
+    "default": null
+   },
+   {
+    "name": "BALANCE",
+    "addr": 20,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 22,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 23,
+  "name": "Gt Amp Sim",
+  "ctrl": [
+   "AMP TYPE",
+   "DRIVE",
+   "LEVEL"
+  ],
+  "params": [
+   {
+    "name": "AMP SW",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "AMP TYPE",
+    "addr": 2,
+    "default": null
+   },
+   {
+    "name": "DRIVE",
+    "addr": 4,
+    "default": {
+     "0": 160,
+     "1": 160,
+     "2": 160,
+     "3": 160,
+     "4": 160
+    }
+   },
+   {
+    "name": "MASTER",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "GAIN",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "BASS",
+    "addr": 10,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "MIDDLE",
+    "addr": 12,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "TREBLE",
+    "addr": 14,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "PRESENCE",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "BRIGHT",
+    "addr": 18,
+    "default": null
+   },
+   {
+    "name": "SP SW",
+    "addr": 20,
+    "default": null
+   },
+   {
+    "name": "SP TYPE",
+    "addr": 22,
+    "default": null
+   },
+   {
+    "name": "MIC SET",
+    "addr": 24,
+    "default": null
+   },
+   {
+    "name": "MIC LEVEL",
+    "addr": 26,
+    "default": null
+   },
+   {
+    "name": "DIRECT",
+    "addr": 28,
+    "default": null
+   },
+   {
+    "name": "PAN",
+    "addr": 30,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 32,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "AMP TYPE",
+    "addr": 34,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 24,
+  "name": "Stopper",
+  "ctrl": [
+   "DEPTH",
+   "RATE",
+   "RESONANCE"
+  ],
+  "params": [
+   {
+    "name": "RATE",
+    "addr": 0,
+    "default": {
+     "0": 7,
+     "1": 2,
+     "2": 2,
+     "3": 2,
+     "4": 2
+    },
+    "max": 8
+   },
+   {
+    "name": "DEPTH",
+    "addr": 2,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "HOLD",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "FLT MOD",
+    "addr": 6,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "RESONANCE",
+    "addr": 8,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "AMP MOD",
+    "addr": 10,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   }
+  ]
+ },
+ {
+  "id": 25,
+  "name": "Downer",
+  "ctrl": [
+   "DEPTH",
+   "RATE",
+   "FILTER"
+  ],
+  "params": [
+   {
+    "name": "RATE",
+    "addr": 0,
+    "default": {
+     "0": 1,
+     "1": 5,
+     "2": 5,
+     "3": 5,
+     "4": 5
+    },
+    "max": 6
+   },
+   {
+    "name": "PITCH",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "DEPTH",
+    "addr": 4,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "FILTER",
+    "addr": 6,
+    "default": {
+     "0": 100,
+     "1": 170,
+     "2": 170,
+     "3": 100,
+     "4": 100
+    },
+    "max": 255
+   },
+   {
+    "name": "RESONANCE",
+    "addr": 8,
+    "default": {
+     "0": 220,
+     "1": 220,
+     "2": 220,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 26,
+  "name": "Slicer",
+  "ctrl": [
+   "PATTERN",
+   "SPEED",
+   "DEPTH"
+  ],
+  "params": [
+   {
+    "name": "PATTERN",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 31
+   },
+   {
+    "name": "DEPTH",
+    "addr": 2,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "SPEED",
+    "addr": 4,
+    "default": {
+     "0": 184,
+     "1": 71,
+     "2": 71,
+     "3": 80,
+     "4": 80
+    },
+    "max": 255
+   },
+   {
+    "name": "SYNC",
+    "addr": 6,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "name": "ATTACK",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "SHUFFLE",
+    "addr": 10,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "RESET SW",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "RESET THR",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "MODE",
+    "addr": 16,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "LEVEL",
+    "addr": 18,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 27,
+  "name": "Auto Pitch",
+  "ctrl": [
+   "PITCH",
+   "FORMANT",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "PITCH",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "FORMANT",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "BALANCE",
+    "addr": 4,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "AT PITCH",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "KEY",
+    "addr": 8,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "ROBOT",
+    "addr": 10,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 28,
+  "name": "Compressor",
+  "ctrl": [
+   "SUSTAIN",
+   "ATTACK",
+   "RATIO"
+  ],
+  "params": [
+   {
+    "name": "SUSTAIN",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "ATTACK",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 4,
+    "default": {
+     "0": 232,
+     "1": 232,
+     "2": 232,
+     "3": 232,
+     "4": 232
+    }
+   },
+   {
+    "name": "RATIO",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "MODE",
+    "addr": 8,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 29,
+  "name": "COMPRESSOR 2",
+  "ctrl": [
+   "SUSTAIN",
+   "ATTACK",
+   "RATIO"
+  ],
+  "params": [
+   {
+    "name": "SUSTAIN",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "ATTACK",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "LEVEL",
+    "addr": 4,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "RATIO",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "TONE",
+    "addr": 8,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "MODE",
+    "addr": 10,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 30,
+  "name": "Scatter",
+  "ctrl": [
+   "TYPE",
+   "DEPTH",
+   "SCATTER"
+  ],
+  "params": [
+   {
+    "name": "TYPE",
+    "addr": 0,
+    "default": {
+     "0": 4,
+     "1": 4,
+     "2": 4,
+     "3": 4,
+     "4": 4
+    },
+    "max": 9
+   },
+   {
+    "name": "DEPTH",
+    "addr": 2,
+    "default": {
+     "0": 4,
+     "1": 4,
+     "2": 4,
+     "3": 4,
+     "4": 4
+    },
+    "max": 9
+   },
+   {
+    "name": "BALANCE",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "SCATTER",
+    "addr": 6,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "name": "SPEED",
+    "addr": 8,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 31,
+  "name": "404 VinylSim",
+  "ctrl": [
+   "FREQUENCY",
+   "NOISE",
+   "WOW FLUT"
+  ],
+  "params": [
+   {
+    "name": "FREQUENCY",
+    "addr": 0,
+    "default": {
+     "0": 100,
+     "1": 100,
+     "2": 100,
+     "3": 100,
+     "4": 100
+    },
+    "max": 255
+   },
+   {
+    "name": "NOISE",
+    "addr": 2,
+    "default": {
+     "0": 50,
+     "1": 50,
+     "2": 50,
+     "3": 6,
+     "4": 6
+    },
+    "max": 255
+   },
+   {
+    "name": "WOW FLUT",
+    "addr": 4,
+    "default": {
+     "0": 200,
+     "1": 200,
+     "2": 200,
+     "3": 200,
+     "4": 200
+    },
+    "max": 255
+   },
+   {
+    "name": "DIST",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "DISC TYPE",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "BALANCE",
+    "addr": 10,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 32,
+  "name": "303 VinylSim",
+  "ctrl": [
+   "COMP",
+   "NOISE",
+   "WOW FLUT"
+  ],
+  "params": [
+   {
+    "name": "COMP",
+    "addr": 0,
+    "default": {
+     "0": 160,
+     "1": 160,
+     "2": 160,
+     "3": 160,
+     "4": 160
+    },
+    "max": 255
+   },
+   {
+    "name": "NOISE",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "WOW FLUT",
+    "addr": 4,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "BALANCE",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 8,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   }
+  ]
+ },
+ {
+  "id": 33,
+  "name": "Zan-Zou",
+  "ctrl": [
+   "TIME",
+   "FEEDBACK",
+   "HF DAMP"
+  ],
+  "params": [
+   {
+    "name": "M D LEVEL",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "M D MODE",
+    "addr": 2,
+    "default": null
+   },
+   {
+    "name": "M D SYNC",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "M D TIME",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "M D FBK",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "M HF DAMP",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "M D PAN1",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "M D PAN2",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "M D PAN3",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "M D PAN4",
+    "addr": 18,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 20,
+    "default": {
+     "0": 200,
+     "1": 200,
+     "2": 200,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "MODE",
+    "addr": 22,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "SYNC",
+    "addr": 24,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "TIME",
+    "addr": 26,
+    "default": {
+     "0": 136,
+     "1": 136,
+     "2": 136,
+     "3": 136,
+     "4": 136
+    },
+    "max": 255
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 28,
+    "default": {
+     "0": 230,
+     "1": 230,
+     "2": 230,
+     "3": 130,
+     "4": 130
+    },
+    "max": 255
+   },
+   {
+    "name": "HF DAMP",
+    "addr": 30,
+    "default": {
+     "0": 16,
+     "1": 16,
+     "2": 16,
+     "3": 16,
+     "4": 16
+    },
+    "max": 17
+   },
+   {
+    "name": "S D PAN1",
+    "addr": 32,
+    "default": null
+   },
+   {
+    "name": "S D PAN2",
+    "addr": 34,
+    "default": null
+   },
+   {
+    "name": "S D PAN3",
+    "addr": 36,
+    "default": null
+   },
+   {
+    "name": "S D PAN4",
+    "addr": 38,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 34,
+  "name": "Super Filter",
+  "ctrl": [
+   "CUTOFF",
+   "RESONANCE",
+   "FLT TYPE"
+  ],
+  "params": [
+   {
+    "name": "FLT TYPE",
+    "addr": 0,
+    "default": {
+     "0": 2,
+     "1": 2,
+     "2": 2,
+     "3": 0,
+     "4": 0
+    },
+    "max": 2
+   },
+   {
+    "name": "FLT SLOPE",
+    "addr": 2,
+    "default": null
+   },
+   {
+    "name": "CUTOFF",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 51,
+     "2": 51,
+     "3": 52,
+     "4": 52
+    },
+    "max": 255
+   },
+   {
+    "name": "RESONANCE",
+    "addr": 6,
+    "default": {
+     "0": 128,
+     "1": 153,
+     "2": 153,
+     "3": 52,
+     "4": 52
+    },
+    "max": 255
+   },
+   {
+    "name": "FLT GAIN",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "MOD SW",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "MOD WAVE",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "SYNC",
+    "addr": 14,
+    "default": {
+     "0": 0,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "name": "RATE",
+    "addr": 16,
+    "default": {
+     "0": 128,
+     "1": 150,
+     "2": 150,
+     "3": 118,
+     "4": 118
+    }
+   },
+   {
+    "name": "DEPTH",
+    "addr": 18,
+    "default": {
+     "0": 0,
+     "1": 179,
+     "2": 179,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "ATTACK",
+    "addr": 20,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 22,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 35,
+  "name": "Hyper-Reso",
+  "ctrl": [
+   "NOTE",
+   "SPREAD",
+   "CHARACTER"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "SCALE",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "LOW CUT F",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "NOTE",
+    "addr": 6,
+    "default": {
+     "0": 17,
+     "1": 17,
+     "2": 17,
+     "3": 17,
+     "4": 17
+    },
+    "max": 34
+   },
+   {
+    "name": "SPREAD",
+    "addr": 8,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 4
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 10,
+    "default": {
+     "0": 200,
+     "1": 200,
+     "2": 200,
+     "3": 200,
+     "4": 200
+    }
+   },
+   {
+    "name": "CHARACTER",
+    "addr": 12,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "ENV MOD",
+    "addr": 14,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 36,
+  "name": "Ko-Da-Ma",
+  "ctrl": [
+   "TIME",
+   "FEEDBACK",
+   "SEND"
+  ],
+  "params": [
+   {
+    "name": "LEVEL",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "TIME",
+    "addr": 2,
+    "default": {
+     "0": 5,
+     "1": 5,
+     "2": 5,
+     "3": 5,
+     "4": 5
+    },
+    "max": 15
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 4,
+    "default": {
+     "0": 180,
+     "1": 180,
+     "2": 180,
+     "3": 180,
+     "4": 180
+    },
+    "max": 255
+   },
+   {
+    "name": "MODE",
+    "addr": 6,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "name": "TAP",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "HIGH CUT",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "HIGH DAMP",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "H DAMP F",
+    "addr": 14,
+    "default": {
+     "0": 13,
+     "1": 13,
+     "2": 13,
+     "3": 13,
+     "4": 13
+    }
+   },
+   {
+    "name": "LOW DAMP",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "L DAMP F",
+    "addr": 18,
+    "default": {
+     "0": 8,
+     "1": 8,
+     "2": 8,
+     "3": 8,
+     "4": 8
+    }
+   },
+   {
+    "name": "SEND",
+    "addr": 20,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   }
+  ]
+ },
+ {
+  "id": 37,
+  "name": "Ha-Dou",
+  "ctrl": [
+   "MOD DEPTH",
+   "TIME",
+   "LEVEL"
+  ],
+  "params": [
+   {
+    "name": "MOD DEPTH",
+    "addr": 0,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "TIME",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "LEVEL",
+    "addr": 4,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "PRE DELAY",
+    "addr": 6,
+    "default": {
+     "0": 100,
+     "1": 100,
+     "2": 100,
+     "3": 100,
+     "4": 100
+    }
+   },
+   {
+    "name": "LOW CUT",
+    "addr": 8,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "HIGH CUT",
+    "addr": 10,
+    "default": {
+     "0": 14,
+     "1": 14,
+     "2": 14,
+     "3": 14,
+     "4": 14
+    }
+   },
+   {
+    "name": "DENSITY",
+    "addr": 12,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 38,
+  "name": "To-Gu-Ro",
+  "ctrl": [
+   "DEPTH",
+   "RATE",
+   "RESONANCE"
+  ],
+  "params": [
+   {
+    "name": "RATE",
+    "addr": 0,
+    "default": {
+     "0": 6,
+     "1": 64,
+     "2": 64,
+     "3": 115,
+     "4": 115
+    },
+    "max": 255
+   },
+   {
+    "name": "DEPTH",
+    "addr": 2,
+    "default": {
+     "0": 32,
+     "1": 32,
+     "2": 32,
+     "3": 32,
+     "4": 32
+    },
+    "max": 255
+   },
+   {
+    "name": "HOLD",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "FLT MOD",
+    "addr": 6,
+    "default": {
+     "0": 180,
+     "1": 180,
+     "2": 180,
+     "3": 180,
+     "4": 180
+    }
+   },
+   {
+    "name": "RESONANCE",
+    "addr": 8,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "AMP MOD",
+    "addr": 10,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "SYNC",
+    "addr": 12,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 1,
+     "4": 1
+    }
+   }
+  ]
+ },
+ {
+  "id": 39,
+  "name": "Cassette Sim",
+  "ctrl": [
+   "TONE",
+   "HISS",
+   "AGE"
+  ],
+  "params": [
+   {
+    "name": "HISS",
+    "addr": 0,
+    "default": {
+     "0": 70,
+     "1": 70,
+     "2": 70,
+     "3": 22,
+     "4": 22
+    },
+    "max": 255
+   },
+   {
+    "name": "AGE",
+    "addr": 2,
+    "default": {
+     "0": 40,
+     "1": 40,
+     "2": 40,
+     "3": 40,
+     "4": 40
+    },
+    "max": 255
+   },
+   {
+    "name": "TONE",
+    "addr": 4,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "DRIVE",
+    "addr": 6,
+    "default": {
+     "0": 50,
+     "1": 50,
+     "2": 50,
+     "3": 50,
+     "4": 50
+    }
+   },
+   {
+    "name": "WOW FLUT",
+    "addr": 8,
+    "default": {
+     "0": 100,
+     "1": 100,
+     "2": 100,
+     "3": 198,
+     "4": 198
+    }
+   },
+   {
+    "name": "CATCH",
+    "addr": 10,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "BALANCE",
+    "addr": 12,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 40,
+  "name": "SBF",
+  "ctrl": [
+   "INTERVAL",
+   "WIDTH",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "INTERVAL",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "WIDTH",
+    "addr": 4,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "TYPE",
+    "addr": 6,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "GAIN",
+    "addr": 8,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   }
+  ]
+ },
+ {
+  "id": 41,
+  "name": "SX Delay",
+  "ctrl": [
+   "TIME",
+   "FEEDBACK",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "SYNC",
+    "addr": 0,
+    "default": null
+   },
+   {
+    "name": "TIME",
+    "addr": 2,
+    "default": {
+     "0": 110,
+     "1": 110,
+     "2": 110,
+     "3": 110,
+     "4": 110
+    },
+    "max": 255
+   },
+   {
+    "name": "PHASE",
+    "addr": 4,
+    "default": null
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 6,
+    "default": {
+     "0": 104,
+     "1": 104,
+     "2": 104,
+     "3": 104,
+     "4": 104
+    },
+    "max": 255
+   },
+   {
+    "name": "FBK ROUTE",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "HF DAMP",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "MOD SW",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "MOD RATE",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "MOD DEPTH",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "BALANCE",
+    "addr": 18,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "EQ LOW",
+    "addr": 20,
+    "default": null
+   },
+   {
+    "name": "EQ HIGH",
+    "addr": 22,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 24,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 42,
+  "name": "Vocoder",
+  "ctrl": [
+   "NOTE",
+   "FORMANT",
+   "TONE"
+  ],
+  "params": [
+   {
+    "name": "NOTE",
+    "addr": 0,
+    "default": {
+     "0": 17,
+     "1": 17,
+     "2": 17,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "FORMANT",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "SCALE",
+    "addr": 4,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "CHORD",
+    "addr": 6,
+    "default": {
+     "0": 2,
+     "1": 2,
+     "2": 2,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "COLOR",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "TONE",
+    "addr": 10,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "LEVEL",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "BALANCE",
+    "addr": 14,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 43,
+  "name": "Harmony",
+  "ctrl": [
+   "PITCH",
+   "FORMANT",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "PITCH",
+    "addr": 0,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "FORMANT",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    }
+   },
+   {
+    "name": "BALANCE",
+    "addr": 4,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "AT PITCH",
+    "addr": 6,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "KEY",
+    "addr": 8,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "name": "HARMONY",
+    "addr": 10,
+    "default": {
+     "0": 1,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   }
+  ]
+ },
+ {
+  "id": 44,
+  "name": "SX Reverb",
+  "ctrl": [
+   "TIME",
+   "TONE",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "TIME",
+    "addr": 0,
+    "default": {
+     "0": 64,
+     "1": 64,
+     "2": 64,
+     "3": 64,
+     "4": 64
+    },
+    "max": 127
+   },
+   {
+    "name": "TONE",
+    "addr": 2,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "BALANCE",
+    "addr": 4,
+    "default": {
+     "0": 128,
+     "1": 128,
+     "2": 128,
+     "3": 128,
+     "4": 128
+    },
+    "max": 255
+   },
+   {
+    "name": "TYPE",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "PRE DELAY",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "LEVEL",
+    "addr": 10,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 45,
+  "name": "Sub Sonic",
+  "ctrl": [
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 255,
+     "2": 255,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 46,
+  "name": "Back Spin",
+  "ctrl": [
+   "LENGTH",
+   "SPEED",
+   "BACK SW"
+  ],
+  "params": [
+   {
+    "name": "LENGTH",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "SPEED",
+    "addr": 2,
+    "default": {
+     "0": 255,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    },
+    "max": 255
+   },
+   {
+    "name": "BACK SW",
+    "addr": 4,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 1
+   },
+   {
+    "name": "MODE",
+    "addr": 6,
+    "default": null
+   },
+   {
+    "name": "FLT MOD",
+    "addr": 8,
+    "default": null
+   },
+   {
+    "name": "SYNC",
+    "addr": 10,
+    "default": null
+   },
+   {
+    "name": "RESONANCE",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "AMP MOD",
+    "addr": 14,
+    "default": null
+   }
+  ]
+ },
+ {
+  "id": 47,
+  "name": "Cloud Delay",
+  "ctrl": [
+   "WINDOW",
+   "PITCH",
+   "BALANCE"
+  ],
+  "params": [
+   {
+    "name": "BALANCE",
+    "addr": 0,
+    "default": {
+     "0": 154,
+     "1": 154,
+     "2": 154,
+     "3": 154,
+     "4": 154
+    },
+    "max": 255
+   },
+   {
+    "name": "PITCH",
+    "addr": 2,
+    "default": {
+     "0": 120,
+     "1": 120,
+     "2": 120,
+     "3": 120,
+     "4": 120
+    },
+    "max": 120
+   },
+   {
+    "name": "WINDOW",
+    "addr": 4,
+    "default": {
+     "0": 154,
+     "1": 154,
+     "2": 154,
+     "3": 154,
+     "4": 154
+    },
+    "max": 255
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 6,
+    "default": {
+     "0": 218,
+     "1": 218,
+     "2": 218,
+     "3": 218,
+     "4": 218
+    }
+   },
+   {
+    "name": "CLOUDY",
+    "addr": 8,
+    "default": {
+     "0": 52,
+     "1": 52,
+     "2": 52,
+     "3": 52,
+     "4": 52
+    }
+   },
+   {
+    "name": "LOFI",
+    "addr": 10,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   }
+  ]
+ },
+ {
+  "id": 48,
+  "name": "DJFX Delay",
+  "ctrl": [
+   "LENGTH",
+   "TIME",
+   "LOOP SW"
+  ],
+  "params": [
+   {
+    "name": "LENGTH",
+    "addr": 0,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 255
+   },
+   {
+    "name": "TIME",
+    "addr": 2,
+    "default": {
+     "0": 0,
+     "1": 168,
+     "2": 168,
+     "3": 168,
+     "4": 168
+    },
+    "max": 255
+   },
+   {
+    "name": "LOOP SW",
+    "addr": 4,
+    "default": {
+     "0": 0,
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    },
+    "max": 1
+   },
+   {
+    "name": "FEEDBACK",
+    "addr": 6,
+    "default": {
+     "0": 0,
+     "1": 170,
+     "2": 170,
+     "3": 170,
+     "4": 170
+    }
+   },
+   {
+    "name": "LEVEL",
+    "addr": 8,
+    "default": {
+     "0": 0,
+     "1": 255,
+     "2": 255,
+     "3": 255,
+     "4": 255
+    }
+   },
+   {
+    "name": "SYNC",
+    "addr": 10,
+    "default": {
+     "0": 0,
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "name": "HIGH CUT",
+    "addr": 12,
+    "default": null
+   },
+   {
+    "name": "HIGH DAMP",
+    "addr": 14,
+    "default": null
+   },
+   {
+    "name": "H DAMP F",
+    "addr": 16,
+    "default": null
+   },
+   {
+    "name": "LOW DAMP",
+    "addr": 18,
+    "default": null
+   },
+   {
+    "name": "L DAMP F",
+    "addr": 20,
+    "default": null
+   }
+  ]
+ }
+]

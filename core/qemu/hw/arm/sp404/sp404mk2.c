@@ -210,6 +210,7 @@ typedef struct SP404Machine {
     /* Analog levels (12-bit) by ADC, channel and mux address. */
     uint16_t analog[2][16][8];
     SP404Audio audio;
+    SP404Fx fx;
     MemoryRegion itcm, dtcm, ocram, bootrom, flash, sdram;
     Clock *sysclk, *refclk;
     char *flash_file;
@@ -686,6 +687,10 @@ static void sp404_init(MachineState *machine)
                                    sp404_sai[i].tx_src));
     }
     sp404_audio_init(&m->audio, &m->sai[0]);
+    /* The BMC's effects: its parameters come over the UART, audio via SAI. */
+    sp404_fx_init(&m->fx);
+    m->audio.fx = &m->fx;
+    m->bmc.fx = &m->fx;
     m->sai[0].ready = sp404_audio_ready;
     m->sai[0].ready_opaque = m;
     m->edma.int_cleared = sp404_audio_dma_serviced;

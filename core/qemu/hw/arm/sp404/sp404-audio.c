@@ -9,6 +9,9 @@
  * - The receiver gets back, on RX line 0 words 0 and 1, the sum of TX line
  *   3 words 0-7 (even to the left, odd to the right), at unity: the
  *   resampling path, which skip back sampling records too.
+ * - Words 0-7 are the buses (BUS 1 on 2/3): the BMC mixes them through its
+ *   effects. With the effects engine loaded (sp404-fx.c) both the output
+ *   and the loopback carry its mix; the metronome words stay outside it.
  *   The unit's inputs (from the frontend) are mixed in there. RX slots are
  *   read as 16-bit samples (RCR5 puts the first bit at bit 15, and the
  *   firmware's DMA reads RDR 16 bits at a time).
@@ -20,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <math.h>
 #include "qemu/bswap.h"
 #include "hw/arm/sp404/sp404.h"
 
@@ -108,9 +112,25 @@ static void sp404_audio_frame(void *opaque,
         memset(a->slot_peak, 0, sizeof(a->slot_peak));
         a->peak_frames = 0;
     }
-    for (int i = 0; i < 8; i += 2) {
-        loop_l += sext20(w[i]);
-        loop_r += sext20(w[i + 1]);
+    if (a->fx && sp404_fx_active(a->fx)) {
+        /* The BMC mixes the buses through its effects. */
+        float stems[8], in[2] = { 0, 0 }, out[2];
+
+        for (int i = 0; i < 8; i++) {
+            stems[i] = sext20(w[i]) / 32768.0f;
+        }
+        if (a->in_count) {
+            in[0] = a->in_ring[a->in_head * 2] / 32768.0f;
+            in[1] = a->in_ring[a->in_head * 2 + 1] / 32768.0f;
+        }
+        sp404_fx_process(a->fx, stems, in, out);
+        loop_l = lrintf(fmaxf(fminf(out[0], 15.f), -15.f) * 32768.0f);
+        loop_r = lrintf(fmaxf(fminf(out[1], 15.f), -15.f) * 32768.0f);
+    } else {
+        for (int i = 0; i < 8; i += 2) {
+            loop_l += sext20(w[i]);
+            loop_r += sext20(w[i + 1]);
+        }
     }
     l = loop_l + sext20(w[12]) + sext20(w[14]);
     r = loop_r + sext20(w[12]) + sext20(w[15]);

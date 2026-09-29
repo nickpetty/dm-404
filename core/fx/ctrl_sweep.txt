@@ -1,0 +1,475 @@
+boot: 2028 writes
+key:MFX                      02 02 00 0a <- 01 0e; 02 00 00 16 <- 00 01
+## step0
+knob:CTRL_1,4095             -
+knob:CTRL_1,0                03 01 12 00 <- 00 09
+knob:CTRL_1,2048             03 01 12 00 <- 00 05
+knob:CTRL_2,4095             -
+knob:CTRL_2,0                03 01 12 02 <- 00 09
+knob:CTRL_2,2048             03 01 12 02 <- 00 05
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                -
+knob:CTRL_3,2048             -
+mfx:1                        02 02 00 0a <- 01 09
+## step1
+knob:CTRL_1,4095             03 00 79 04 <- 00 00
+knob:CTRL_1,0                03 00 79 04 <- 0f 0f
+knob:CTRL_1,2048             03 00 79 04 <- 08 04
+knob:CTRL_2,4095             03 00 79 00 <- 00 00
+knob:CTRL_2,0                03 00 79 00 <- 00 06
+knob:CTRL_2,2048             03 00 79 00 <- 00 03
+knob:CTRL_3,4095             03 00 79 06 <- 00 00
+knob:CTRL_3,0                03 00 79 06 <- 0f 0f
+knob:CTRL_3,2048             03 00 79 06 <- 08 04
+mfx:1                        02 02 00 0a <- 02 05
+## step2
+knob:CTRL_1,4095             03 01 35 00 <- 00 00
+knob:CTRL_1,0                03 01 35 00 <- 0f 0f
+knob:CTRL_1,2048             03 01 35 00 <- 08 04
+knob:CTRL_2,4095             -
+knob:CTRL_2,0                03 01 35 02 <- 0f 0f
+knob:CTRL_2,2048             03 01 35 02 <- 08 04
+knob:CTRL_3,4095             03 01 35 04 <- 00 00
+knob:CTRL_3,0                03 01 35 04 <- 0f 0f
+knob:CTRL_3,2048             03 01 35 04 <- 08 04
+mfx:1                        02 02 00 0a <- 02 04
+## step3
+knob:CTRL_1,4095             03 01 30 02 <- 00 00
+knob:CTRL_1,0                03 01 30 02 <- 00 0f
+knob:CTRL_1,2048             03 01 30 02 <- 00 08
+knob:CTRL_2,4095             03 01 30 04 <- 00 00
+knob:CTRL_2,0                03 01 30 04 <- 0f 0f
+knob:CTRL_2,2048             03 01 30 04 <- 08 04
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 01 30 14 <- 0f 0f
+knob:CTRL_3,2048             03 01 30 14 <- 08 04
+mfx:1                        02 02 00 0a <- 02 01
+## step4
+knob:CTRL_1,4095             03 01 21 1a <- 00 00
+knob:CTRL_1,0                03 01 21 1a <- 0f 0f
+knob:CTRL_1,2048             03 01 21 1a <- 08 04
+knob:CTRL_2,4095             03 01 21 1c <- 00 00
+knob:CTRL_2,0                03 01 21 1c <- 0f 0f
+knob:CTRL_2,2048             03 01 21 1c <- 08 04
+knob:CTRL_3,4095             03 01 21 1e <- 00 00
+knob:CTRL_3,0                03 01 21 1e <- 01 01
+knob:CTRL_3,2048             03 01 21 1e <- 00 09
+mfx:1                        02 02 00 0a <- 02 06
+## step5
+knob:CTRL_1,4095             03 01 3a 02 <- 00 00
+knob:CTRL_1,0                03 01 3a 02 <- 0f 0f
+knob:CTRL_1,2048             03 01 3a 02 <- 08 04
+knob:CTRL_2,4095             03 01 3a 00 <- 00 00
+knob:CTRL_2,0                03 01 3a 00 <- 0f 0f
+knob:CTRL_2,2048             03 01 3a 00 <- 08 04
+knob:CTRL_3,4095             03 01 3a 08 <- 00 00
+knob:CTRL_3,0                03 01 3a 08 <- 0f 0f
+knob:CTRL_3,2048             03 01 3a 08 <- 08 04
+mfx:1                        02 02 00 0a <- 02 08
+## step6
+knob:CTRL_1,4095             -
+knob:CTRL_1,0                03 01 44 02 <- 0f 0f
+knob:CTRL_1,2048             03 01 44 02 <- 08 04
+knob:CTRL_2,4095             -
+knob:CTRL_2,0                03 01 44 04 <- 0f 0f
+knob:CTRL_2,2048             03 01 44 04 <- 08 04
+knob:CTRL_3,4095             03 01 44 00 <- 00 00
+knob:CTRL_3,0                03 01 44 00 <- 0f 0f
+knob:CTRL_3,2048             03 01 44 00 <- 08 04
+mfx:1                        02 02 00 0a <- 01 08
+## step7
+knob:CTRL_1,4095             03 00 74 02 <- 00 00
+knob:CTRL_1,0                03 00 74 02 <- 0f 0f
+knob:CTRL_1,2048             03 00 74 02 <- 08 04
+knob:CTRL_2,4095             03 00 74 00 <- 00 00
+knob:CTRL_2,0                03 00 74 00 <- 00 08
+knob:CTRL_2,2048             03 00 74 00 <- 00 04
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 00 74 08 <- 0f 0f
+knob:CTRL_3,2048             03 00 74 08 <- 08 04
+mfx:1                        02 02 00 0a <- 00 09
+## step8
+knob:CTRL_1,4095             03 00 29 04 <- 00 00
+knob:CTRL_1,0                03 00 29 04 <- 0f 0f
+knob:CTRL_1,2048             03 00 29 04 <- 08 04
+knob:CTRL_2,4095             03 00 29 06 <- 00 00
+knob:CTRL_2,0                03 00 29 06 <- 0f 0f
+knob:CTRL_2,2048             03 00 29 06 <- 08 04
+knob:CTRL_3,4095             03 00 29 02 <- 00 00
+knob:CTRL_3,0                03 00 29 02 <- 0f 0f
+knob:CTRL_3,2048             03 00 29 02 <- 08 04
+mfx:1                        02 02 00 0a <- 00 02
+## step9
+knob:CTRL_1,4095             03 00 06 04 <- 00 00
+knob:CTRL_1,0                03 00 06 04 <- 0f 0f
+knob:CTRL_1,2048             03 00 06 04 <- 08 04
+knob:CTRL_2,4095             03 00 06 06 <- 00 00
+knob:CTRL_2,0                03 00 06 06 <- 0f 0f
+knob:CTRL_2,2048             03 00 06 06 <- 08 04
+knob:CTRL_3,4095             03 00 06 02 <- 00 00
+knob:CTRL_3,0                03 00 06 02 <- 0f 0f
+knob:CTRL_3,2048             03 00 06 02 <- 08 04
+mfx:1                        02 02 00 0a <- 02 02
+## step10
+knob:CTRL_1,4095             03 01 26 04 <- 00 00
+knob:CTRL_1,0                03 01 26 04 <- 0f 0f
+knob:CTRL_1,2048             03 01 26 04 <- 08 04
+knob:CTRL_2,4095             03 01 26 06 <- 00 00
+knob:CTRL_2,0                03 01 26 06 <- 0f 0f
+knob:CTRL_2,2048             03 01 26 06 <- 08 04
+knob:CTRL_3,4095             03 01 26 00 <- 00 00
+knob:CTRL_3,0                03 01 26 00 <- 00 02
+knob:CTRL_3,2048             03 01 26 00 <- 00 01
+mfx:1                        02 02 00 0a <- 00 0b
+## step11
+knob:CTRL_1,4095             03 00 33 0e <- 00 00
+knob:CTRL_1,0                03 00 33 0e <- 03 00
+knob:CTRL_1,2048             03 00 33 0e <- 01 09
+knob:CTRL_2,4095             03 00 33 14 <- 00 00
+knob:CTRL_2,0                03 00 33 14 <- 03 00
+knob:CTRL_2,2048             03 00 33 14 <- 01 09
+knob:CTRL_3,4095             03 00 33 1a <- 00 00
+knob:CTRL_3,0                03 00 33 1a <- 03 00
+knob:CTRL_3,2048             03 00 33 1a <- 01 09
+mfx:1                        02 02 00 0a <- 02 00
+## step12
+knob:CTRL_1,4095             03 01 1c 00 <- 00 00
+knob:CTRL_1,0                03 01 1c 00 <- 0f 0f
+knob:CTRL_1,2048             03 01 1c 00 <- 08 04
+knob:CTRL_2,4095             -
+knob:CTRL_2,0                03 01 1c 02 <- 0f 0f
+knob:CTRL_2,2048             03 01 1c 02 <- 08 04
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 01 1c 04 <- 0f 0f
+knob:CTRL_3,2048             03 01 1c 04 <- 08 04
+mfx:1                        02 02 00 0a <- 01 0f
+## step13
+knob:CTRL_1,4095             03 01 17 00 <- 00 00
+knob:CTRL_1,0                03 01 17 00 <- 0f 0f
+knob:CTRL_1,2048             03 01 17 00 <- 08 04
+knob:CTRL_2,4095             03 01 17 02 <- 00 00
+knob:CTRL_2,0                03 01 17 02 <- 0f 0f
+knob:CTRL_2,2048             03 01 17 02 <- 08 04
+knob:CTRL_3,4095             03 01 17 04 <- 00 00
+knob:CTRL_3,0                03 01 17 04 <- 0f 0f
+knob:CTRL_3,2048             03 01 17 04 <- 08 04
+mfx:1                        02 02 00 0a <- 02 07
+## step14
+knob:CTRL_1,4095             03 01 3f 04 <- 00 00
+knob:CTRL_1,0                03 01 3f 04 <- 0f 0f
+knob:CTRL_1,2048             03 01 3f 04 <- 08 04
+knob:CTRL_2,4095             03 01 3f 00 <- 00 00
+knob:CTRL_2,0                03 01 3f 00 <- 0f 0f
+knob:CTRL_2,2048             03 01 3f 00 <- 08 04
+knob:CTRL_3,4095             03 01 3f 02 <- 00 00
+knob:CTRL_3,0                03 01 3f 02 <- 0f 0f
+knob:CTRL_3,2048             03 01 3f 02 <- 08 04
+mfx:1                        02 02 00 0a <- 01 04
+## step15
+knob:CTRL_1,4095             03 00 60 00 <- 00 00
+knob:CTRL_1,0                03 00 60 00 <- 00 05
+knob:CTRL_1,2048             03 00 60 00 <- 00 03
+knob:CTRL_2,4095             03 00 60 02 <- 00 00
+knob:CTRL_2,0                03 00 60 02 <- 00 08
+knob:CTRL_2,2048             03 00 60 02 <- 00 04
+knob:CTRL_3,4095             03 00 60 0c <- 00 00
+knob:CTRL_3,0                03 00 60 0c <- 0f 0f
+knob:CTRL_3,2048             03 00 60 0c <- 08 04
+mfx:1                        02 02 00 0a <- 00 0a
+## step16
+knob:CTRL_1,4095             03 00 2e 00 <- 00 00
+knob:CTRL_1,0                03 00 2e 00 <- 00 03
+knob:CTRL_1,2048             03 00 2e 00 <- 00 02
+knob:CTRL_2,4095             03 00 2e 02 <- 00 00
+knob:CTRL_2,0                03 00 2e 02 <- 0f 0f
+knob:CTRL_2,2048             03 00 2e 02 <- 08 04
+knob:CTRL_3,4095             03 00 2e 04 <- 00 00
+knob:CTRL_3,0                03 00 2e 04 <- 0f 0f
+knob:CTRL_3,2048             03 00 2e 04 <- 08 04
+mfx:1                        02 02 00 0a <- 00 0e
+## step17
+knob:CTRL_1,4095             03 00 42 06 <- 00 00
+knob:CTRL_1,0                03 00 42 06 <- 0f 0f
+knob:CTRL_1,2048             03 00 42 06 <- 08 04
+knob:CTRL_2,4095             03 00 42 00 <- 00 00
+knob:CTRL_2,0                03 00 42 00 <- 0f 0f
+knob:CTRL_2,2048             03 00 42 00 <- 08 04
+knob:CTRL_3,4095             03 00 42 04 <- 00 00
+knob:CTRL_3,0                03 00 42 04 <- 0f 0f
+knob:CTRL_3,2048             03 00 42 04 <- 08 04
+mfx:1                        02 02 00 0a <- 00 0f
+## step18
+knob:CTRL_1,4095             -
+knob:CTRL_1,0                03 00 47 00 <- 00 04
+knob:CTRL_1,2048             03 00 47 00 <- 00 02
+knob:CTRL_2,4095             03 00 47 02 <- 00 00
+knob:CTRL_2,0                03 00 47 02 <- 0f 0f
+knob:CTRL_2,2048             03 00 47 02 <- 08 04
+knob:CTRL_3,4095             03 00 47 04 <- 00 00
+knob:CTRL_3,0                03 00 47 04 <- 0f 0f
+knob:CTRL_3,2048             03 00 47 04 <- 08 04
+mfx:1                        02 02 00 0a <- 00 06
+## step19
+knob:CTRL_1,4095             03 00 1a 04 <- 00 00
+knob:CTRL_1,0                03 00 1a 04 <- 0f 0f
+knob:CTRL_1,2048             03 00 1a 04 <- 08 04
+knob:CTRL_2,4095             03 00 1a 02 <- 00 00
+knob:CTRL_2,0                03 00 1a 02 <- 0f 0f
+knob:CTRL_2,2048             03 00 1a 02 <- 08 04
+knob:CTRL_3,4095             03 00 1a 08 <- 00 00
+knob:CTRL_3,0                03 00 1a 08 <- 0f 0f
+knob:CTRL_3,2048             03 00 1a 08 <- 08 04
+mfx:1                        02 02 00 0a <- 00 05
+## step20
+knob:CTRL_1,4095             03 00 15 04 <- 00 00
+knob:CTRL_1,0                03 00 15 04 <- 0f 0f
+knob:CTRL_1,2048             03 00 15 04 <- 08 04
+knob:CTRL_2,4095             03 00 15 02 <- 00 00
+knob:CTRL_2,0                03 00 15 02 <- 0f 0f
+knob:CTRL_2,2048             03 00 15 02 <- 08 04
+knob:CTRL_3,4095             03 00 15 08 <- 00 00
+knob:CTRL_3,0                03 00 15 08 <- 0f 0f
+knob:CTRL_3,2048             03 00 15 08 <- 08 04
+mfx:1                        02 02 00 0a <- 01 01
+## step21
+knob:CTRL_1,4095             03 00 51 04 <- 00 00
+knob:CTRL_1,0                03 00 51 04 <- 0f 0f
+knob:CTRL_1,2048             03 00 51 04 <- 08 04
+knob:CTRL_2,4095             03 00 51 08 <- 00 00
+knob:CTRL_2,0                03 00 51 08 <- 0f 0f
+knob:CTRL_2,2048             03 00 51 08 <- 08 04
+knob:CTRL_3,4095             03 00 51 02 <- 00 00
+knob:CTRL_3,0                03 00 51 02 <- 0f 0f
+knob:CTRL_3,2048             03 00 51 02 <- 08 04
+mfx:1                        02 02 00 0a <- 01 0a
+## step22
+knob:CTRL_1,4095             -
+knob:CTRL_1,0                03 00 7e 00 <- 01 0f
+knob:CTRL_1,2048             03 00 7e 00 <- 01 00
+knob:CTRL_2,4095             03 00 7e 04 <- 00 00
+knob:CTRL_2,0                03 00 7e 04 <- 0f 0f
+knob:CTRL_2,2048             03 00 7e 04 <- 08 04
+knob:CTRL_3,4095             03 00 7e 02 <- 00 00
+knob:CTRL_3,0                03 00 7e 02 <- 0f 0f
+knob:CTRL_3,2048             03 00 7e 02 <- 08 04
+mfx:1                        02 02 00 0a <- 01 00
+## step23
+knob:CTRL_1,4095             03 00 4c 08 <- 00 00
+knob:CTRL_1,0                03 00 4c 08 <- 0f 0f
+knob:CTRL_1,2048             03 00 4c 08 <- 08 04
+knob:CTRL_2,4095             03 00 4c 06 <- 00 00
+knob:CTRL_2,0                03 00 4c 06 <- 0f 0f
+knob:CTRL_2,2048             03 00 4c 06 <- 08 04
+knob:CTRL_3,4095             03 00 4c 00 <- 00 00
+knob:CTRL_3,0                03 00 4c 00 <- 00 01
+knob:CTRL_3,2048             -
+mfx:1                        02 02 00 0a <- 01 06
+## step24
+knob:CTRL_1,4095             03 00 6a 00 <- 00 00
+knob:CTRL_1,0                03 00 6a 00 <- 02 04
+knob:CTRL_1,2048             03 00 6a 00 <- 01 03
+knob:CTRL_2,4095             03 00 6a 08 <- 00 00
+knob:CTRL_2,0                03 00 6a 08 <- 02 04
+knob:CTRL_2,2048             03 00 6a 08 <- 01 03
+knob:CTRL_3,4095             03 00 6a 14 <- 00 00
+knob:CTRL_3,0                03 00 6a 14 <- 0f 0f
+knob:CTRL_3,2048             03 00 6a 14 <- 08 04
+mfx:1                        02 02 00 0a <- 02 03
+## step25
+knob:CTRL_1,4095             03 01 2b 06 <- 00 00
+knob:CTRL_1,0                03 01 2b 06 <- 02 02
+knob:CTRL_1,2048             03 01 2b 06 <- 01 02
+knob:CTRL_2,4095             -
+knob:CTRL_2,0                03 01 2b 08 <- 00 04
+knob:CTRL_2,2048             03 01 2b 08 <- 00 02
+knob:CTRL_3,4095             03 01 2b 0c <- 00 00
+knob:CTRL_3,0                03 01 2b 0c <- 0f 0f
+knob:CTRL_3,2048             03 01 2b 0c <- 08 04
+mfx:1                        02 02 00 0a <- 01 05
+## step26
+knob:CTRL_1,4095             03 00 65 00 <- 00 00
+knob:CTRL_1,0                03 00 65 00 <- 0f 0f
+knob:CTRL_1,2048             03 00 65 00 <- 08 04
+knob:CTRL_2,4095             -
+knob:CTRL_2,0                03 00 65 02 <- 0f 0f
+knob:CTRL_2,2048             03 00 65 02 <- 08 04
+knob:CTRL_3,4095             03 00 65 0a <- 00 00
+knob:CTRL_3,0                03 00 65 0a <- 0f 0f
+knob:CTRL_3,2048             03 00 65 0a <- 08 04
+mfx:1                        02 02 00 0a <- 00 04
+## step27
+knob:CTRL_1,4095             03 00 10 04 <- 00 00
+knob:CTRL_1,0                03 00 10 04 <- 0f 0f
+knob:CTRL_1,2048             03 00 10 04 <- 08 04
+knob:CTRL_2,4095             -
+knob:CTRL_2,0                03 00 10 02 <- 0f 0f
+knob:CTRL_2,2048             03 00 10 02 <- 08 04
+knob:CTRL_3,4095             03 00 10 00 <- 00 00
+knob:CTRL_3,0                03 00 10 00 <- 0f 0f
+knob:CTRL_3,2048             03 00 10 00 <- 08 04
+mfx:1                        02 02 00 0a <- 00 07
+## step28
+knob:CTRL_1,4095             03 00 1f 02 <- 00 00
+knob:CTRL_1,0                03 00 1f 02 <- 0f 0f
+knob:CTRL_1,2048             03 00 1f 02 <- 08 04
+knob:CTRL_2,4095             03 00 1f 04 <- 00 00
+knob:CTRL_2,0                03 00 1f 04 <- 0f 0f
+knob:CTRL_2,2048             03 00 1f 04 <- 08 04
+knob:CTRL_3,4095             03 00 1f 00 <- 00 00
+knob:CTRL_3,0                03 00 1f 00 <- 0f 0f
+knob:CTRL_3,2048             03 00 1f 00 <- 08 04
+mfx:1                        02 02 00 0a <- 00 08
+## step29
+knob:CTRL_1,4095             03 00 24 02 <- 00 00
+knob:CTRL_1,0                03 00 24 02 <- 0f 0f
+knob:CTRL_1,2048             03 00 24 02 <- 08 04
+knob:CTRL_2,4095             03 00 24 04 <- 00 00
+knob:CTRL_2,0                03 00 24 04 <- 0f 0f
+knob:CTRL_2,2048             03 00 24 04 <- 08 04
+knob:CTRL_3,4095             03 00 24 00 <- 00 00
+knob:CTRL_3,0                03 00 24 00 <- 0f 0f
+knob:CTRL_3,2048             03 00 24 00 <- 08 04
+mfx:1                        02 02 00 0a <- 01 03
+## step30
+knob:CTRL_1,4095             03 00 5b 02 <- 00 00
+knob:CTRL_1,0                03 00 5b 02 <- 01 0e
+knob:CTRL_1,2048             03 00 5b 02 <- 01 00
+knob:CTRL_2,4095             03 00 5b 06 <- 00 00
+knob:CTRL_2,0                03 00 5b 06 <- 01 0e
+knob:CTRL_2,2048             03 00 5b 06 <- 01 00
+knob:CTRL_3,4095             03 00 5b 12 <- 00 00
+knob:CTRL_3,0                03 00 5b 12 <- 01 0e
+knob:CTRL_3,2048             03 00 5b 12 <- 01 00
+mfx:1                        02 02 00 0a <- 01 0c
+## step31
+knob:CTRL_1,4095             03 01 08 00 <- 00 00
+knob:CTRL_1,0                03 01 08 00 <- 0f 0f
+knob:CTRL_1,2048             03 01 08 00 <- 08 04
+knob:CTRL_2,4095             03 01 08 02 <- 00 00
+knob:CTRL_2,0                03 01 08 02 <- 0f 0f
+knob:CTRL_2,2048             03 01 08 02 <- 08 04
+knob:CTRL_3,4095             03 01 08 06 <- 00 00
+knob:CTRL_3,0                03 01 08 06 <- 0f 0f
+knob:CTRL_3,2048             03 01 08 06 <- 08 04
+mfx:1                        02 02 00 0a <- 02 0c
+## step32
+knob:CTRL_1,4095             03 01 58 00 <- 00 00
+knob:CTRL_1,0                03 01 58 00 <- 07 0f
+knob:CTRL_1,2048             03 01 58 00 <- 04 02
+knob:CTRL_2,4095             03 01 58 02 <- 00 00
+knob:CTRL_2,0                03 01 58 02 <- 0f 0f
+knob:CTRL_2,2048             03 01 58 02 <- 08 04
+knob:CTRL_3,4095             03 01 58 04 <- 00 00
+knob:CTRL_3,0                03 01 58 04 <- 0f 0f
+knob:CTRL_3,2048             03 01 58 04 <- 08 04
+mfx:1                        02 02 00 0a <- 02 09
+## step33
+knob:CTRL_1,4095             03 01 49 02 <- 00 00
+knob:CTRL_1,0                03 01 49 02 <- 0f 0f
+knob:CTRL_1,2048             03 01 49 02 <- 08 04
+knob:CTRL_2,4095             03 01 49 06 <- 00 00
+knob:CTRL_2,0                03 01 49 06 <- 0f 0f
+knob:CTRL_2,2048             03 01 49 06 <- 08 04
+knob:CTRL_3,4095             03 01 49 12 <- 00 00
+knob:CTRL_3,0                03 01 49 12 <- 0f 0f
+knob:CTRL_3,2048             03 01 49 12 <- 08 04
+mfx:1                        02 02 00 0a <- 02 0f
+## step34
+knob:CTRL_1,4095             03 01 67 04 <- 00 00
+knob:CTRL_1,0                03 01 67 04 <- 0f 0f
+knob:CTRL_1,2048             03 01 67 04 <- 08 04
+knob:CTRL_2,4095             03 01 67 02 <- 00 00
+knob:CTRL_2,0                03 01 67 02 <- 07 08
+knob:CTRL_2,2048             03 01 67 02 <- 03 0e
+knob:CTRL_3,4095             03 01 67 00 <- 00 00
+knob:CTRL_3,0                03 01 67 00 <- 0f 0f
+knob:CTRL_3,2048             03 01 67 00 <- 08 04
+mfx:1                        02 02 00 0a <- 02 0e
+## step35
+knob:CTRL_1,4095             -
+knob:CTRL_1,0                03 01 62 00 <- 0f 0f
+knob:CTRL_1,2048             03 01 62 00 <- 08 04
+knob:CTRL_2,4095             03 01 62 02 <- 00 00
+knob:CTRL_2,0                03 01 62 02 <- 0f 0f
+knob:CTRL_2,2048             03 01 62 02 <- 08 04
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 01 62 04 <- 00 01
+knob:CTRL_3,2048             -
+mfx:1                        02 02 00 0a <- 03 00
+## step36
+knob:CTRL_1,4095             -
+knob:CTRL_1,0                03 01 6c 00 <- 0f 0f
+knob:CTRL_1,2048             03 01 6c 00 <- 08 04
+knob:CTRL_2,4095             03 01 6c 02 <- 00 00
+knob:CTRL_2,0                03 01 6c 02 <- 0f 0f
+knob:CTRL_2,2048             03 01 6c 02 <- 08 04
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 01 6c 04 <- 00 01
+knob:CTRL_3,2048             -
+mfx:1                        02 02 00 0a <- 00 01
+## step37
+knob:CTRL_1,4095             03 00 01 00 <- 00 00
+knob:CTRL_1,0                03 00 01 00 <- 0f 0f
+knob:CTRL_1,2048             03 00 01 00 <- 08 04
+knob:CTRL_2,4095             03 00 01 02 <- 00 00
+knob:CTRL_2,0                03 00 01 02 <- 0f 0f
+knob:CTRL_2,2048             03 00 01 02 <- 08 04
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 00 01 04 <- 0f 0f
+knob:CTRL_3,2048             03 00 01 04 <- 08 04
+mfx:1                        02 02 00 0a <- 00 0c
+## step38
+knob:CTRL_1,4095             03 00 38 06 <- 00 00
+knob:CTRL_1,0                03 00 38 06 <- 07 0f
+knob:CTRL_1,2048             03 00 38 06 <- 04 02
+knob:CTRL_2,4095             03 00 38 0c <- 00 00
+knob:CTRL_2,0                03 00 38 0c <- 0f 0f
+knob:CTRL_2,2048             03 00 38 0c <- 08 04
+knob:CTRL_3,4095             03 00 38 0a <- 00 00
+knob:CTRL_3,0                03 00 38 0a <- 0f 0f
+knob:CTRL_3,2048             03 00 38 0a <- 08 04
+mfx:1                        02 02 00 0a <- 01 02
+## step39
+knob:CTRL_1,4095             03 00 56 02 <- 00 00
+knob:CTRL_1,0                03 00 56 02 <- 00 0f
+knob:CTRL_1,2048             03 00 56 02 <- 00 08
+knob:CTRL_2,4095             03 00 56 04 <- 00 00
+knob:CTRL_2,0                03 00 56 04 <- 0f 0f
+knob:CTRL_2,2048             03 00 56 04 <- 08 04
+knob:CTRL_3,4095             03 00 56 00 <- 00 00
+knob:CTRL_3,0                03 00 56 00 <- 0f 0f
+knob:CTRL_3,2048             03 00 56 00 <- 08 04
+mfx:1                        02 02 00 0a <- 00 03
+## step40
+knob:CTRL_1,4095             -
+knob:CTRL_1,0                03 00 0b 02 <- 0f 0f
+knob:CTRL_1,2048             03 00 0b 02 <- 08 04
+knob:CTRL_2,4095             03 00 0b 04 <- 00 00
+knob:CTRL_2,0                03 00 0b 04 <- 0f 0f
+knob:CTRL_2,2048             03 00 0b 04 <- 08 04
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 00 0b 06 <- 0f 0f
+knob:CTRL_3,2048             03 00 0b 06 <- 08 04
+mfx:1                        02 02 00 0a <- 00 0d
+## step41
+knob:CTRL_1,4095             -
+knob:CTRL_1,0                03 00 3d 00 <- 0f 0f
+knob:CTRL_1,2048             03 00 3d 00 <- 08 04
+knob:CTRL_2,4095             03 00 3d 02 <- 00 00
+knob:CTRL_2,0                03 00 3d 02 <- 0c 08
+knob:CTRL_2,2048             03 00 3d 02 <- 06 08
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 00 3d 04 <- 00 01
+knob:CTRL_3,2048             -
+mfx:1                        02 00 00 16 <- 00 00; 03 00 3d 04 <- 00 00
+## step42
+knob:CTRL_1,4095             03 00 3d 00 <- 00 00
+knob:CTRL_1,0                03 00 3d 00 <- 0f 0f
+knob:CTRL_1,2048             03 00 3d 00 <- 08 04
+knob:CTRL_2,4095             03 00 3d 02 <- 00 00
+knob:CTRL_2,0                03 00 3d 02 <- 0c 08
+knob:CTRL_2,2048             03 00 3d 02 <- 06 08
+knob:CTRL_3,4095             -
+knob:CTRL_3,0                03 00 3d 04 <- 00 01
+knob:CTRL_3,2048             -
+mfx:1                        02 00 00 16 <- 00 01; 03 00 3d 04 <- 00 00

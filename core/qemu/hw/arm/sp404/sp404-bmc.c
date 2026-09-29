@@ -46,6 +46,9 @@ static void bmc_packet(SP404BMC *bmc, const uint8_t *p)
     if (bmc->link) {
         sp404_link_bmc_tx(bmc->link, p);
     }
+    if (bmc->fx) {
+        sp404_fx_midi(bmc->fx, p);
+    }
     if ((p[0] & 0xf) == 1 && p[1] == 0xfe && p[2] == 0x11) {
         /*
          * Asked at the end of project load (FUN_8013dbe8), which polls for
