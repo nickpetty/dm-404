@@ -32,7 +32,8 @@ public:
     void sendKnob (int adc, int channel, int mux, int value);
     void sendBmc (const uint8_t packet[4]);
     void sendEncoder (int detents);
-    // The unit's inputs: 48 kHz stereo, sent as it comes.
+    // The unit's inputs: 48 kHz stereo. Safe on the audio thread: it only
+    // queues the frames; a separate thread sends them to the emulator.
     void sendAudioIn (const float* left, const float* right, int frames);
 
     // Gain applied to the emulator's audio: the unit's VOLUME knob is an
@@ -71,4 +72,18 @@ private:
     std::vector<int16_t> audioBuf = std::vector<int16_t> (fifoFrames * 2);
 
     int port = 5404;
+
+    // Input audio waiting to be sent (s16 stereo), and the thread sending it.
+    static constexpr int inFifoFrames = 48000;
+    juce::AbstractFifo inFifo { inFifoFrames };
+    std::vector<int16_t> inBuf = std::vector<int16_t> (inFifoFrames * 2);
+    juce::WaitableEvent inReady;
+    class InputSender : public juce::Thread
+    {
+    public:
+        explicit InputSender (EmulatorLink& l) : juce::Thread ("emulator input"), link (l) {}
+        void run() override;
+        EmulatorLink& link;
+    };
+    InputSender inputSender { *this };
 };

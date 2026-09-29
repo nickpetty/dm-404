@@ -92,6 +92,7 @@ public:
         recording = true;
         underruns = 0;
         skips = 0;
+        lateCallbacks = 0;
         auto hit = [this] (int at, int ch, int mux)
         {
             juce::Timer::callAfterDelay (at, [this, ch, mux] { link.sendKnob (0, ch, mux, 300); });
@@ -120,7 +121,9 @@ public:
                 delete w;
             }
             out.withFileExtension ("txt").replaceWithText ("underruns " + juce::String (underruns.load())
-                                                           + "\nskips " + juce::String (skips.load()) + "\n");
+                                                           + "\nskips " + juce::String (skips.load())
+                                                           + "\nlate callbacks " + juce::String (lateCallbacks.load())
+                                                           + "\ncushion ms " + juce::String ((int) (cushion.load() / 48.0)) + "\n");
             juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Audio test finished",
                 "Saved " + out.getFullPathName() + "\n\nUnderruns (ran dry): " + juce::String (underruns.load())
                     + "\nSkips (jumped ahead): " + juce::String (skips.load()));
@@ -162,16 +165,28 @@ private:
         status.setText (juce::String (link.isConnected() ? "Running" : "Not connected")
                             + "   screens " + juce::String (lastScreen)
                             + "   audio backlog " + juce::String (link.audioBacklog())
+                            + "   cushion " + juce::String ((int) (cushion.load() / 48.0)) + " ms"
                             + "   underruns " + juce::String (underruns.load())
                             + "   skips " + juce::String (skips.load())
+                            + "   late callbacks " + juce::String (lateCallbacks.load())
                             + "   device " + (dev ? dev->getName() + " @ " + juce::String (dev->getCurrentSampleRate()) : juce::String ("none"))
                             + "   right-click a control to learn its binding",
                         juce::dontSendNotification);
     }
 
     void audioDeviceIOCallbackWithContext (const float* const* in, int numIn, float* const* out, int numOut,
-                                           int numSamples, const juce::AudioIODeviceCallbackContext&) override
+                                           int numSamples, const juce::AudioIODeviceCallbackContext& ctx) override
     {
+        // Count callbacks that use more than half their time: the device
+        // glitches when one overruns, whatever the samples were.
+        const auto t0 = juce::Time::getHighResolutionTicks();
+        const juce::ScopeGuard timing { [&]
+        {
+            const double used = juce::Time::highResolutionTicksToSeconds (juce::Time::getHighResolutionTicks() - t0);
+            if (used > 0.5 * numSamples / deviceRate.load())
+                ++lateCallbacks;
+        } };
+        juce::ignoreUnused (ctx);
         // Inputs: the first two enabled channels (one is used for both
         // sides), at 48 kHz, to the unit's inputs.
         if (numIn > 0 && link.isConnected())
@@ -204,7 +219,9 @@ private:
         // from running dry or from skipping ahead. Input is staged, so no
         // sample is ever thrown away between callbacks.
         const double base = 48000.0 / deviceRate.load();
-        const double target = 2880.0;                       // 60 ms at 48 kHz
+        // The cushion starts at 60 ms and grows by 20 ms (to 200 ms at most)
+        // each time it runs dry, settling at what this machine needs.
+        const double target = cushion.load();
         const double fill = link.audioBacklog() + (double) staged;
 
         if (fill > target * 8)
@@ -234,7 +251,10 @@ private:
             // Dry: wait for the cushion to build up again rather than play
             // fragments.
             if (primed)
+            {
                 ++underruns;
+                cushion = juce::jmin (9600.0, cushion.load() + 960.0);
+            }
             primed = false;
             return;
         }
@@ -284,7 +304,8 @@ private:
     std::vector<float> recorded[2];
     double steer = 0.0;             // rate correction holding the cushion
     bool primed = false;
-    std::atomic<int> underruns { 0 }, skips { 0 };
+    std::atomic<int> underruns { 0 }, skips { 0 }, lateCallbacks { 0 };
+    std::atomic<double> cushion { 2880.0 };     // frames at 48 kHz
     uint32_t lastScreen = 0;
 };
 

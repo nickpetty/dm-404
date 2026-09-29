@@ -66,11 +66,15 @@ juce::String EmulatorLink::start (const Paths& p)
         return "Could not start " + p.qemu.getFullPathName();
 
     startThread (juce::Thread::Priority::high);
+    inputSender.startThread();
     return {};
 }
 
 void EmulatorLink::stop()
 {
+    inputSender.signalThreadShouldExit();
+    inReady.signal();
+    inputSender.stopThread (1000);
     signalThreadShouldExit();
     {
         const juce::ScopedLock sl (sendLock);
@@ -228,21 +232,51 @@ void EmulatorLink::sendBmc (const uint8_t packet[4])
 
 void EmulatorLink::sendAudioIn (const float* left, const float* right, int frames)
 {
-    uint8_t buf[256 * 4];
-    for (int done = 0; done < frames;)
+    // Audio thread: no locks, no socket. Frames that do not fit are dropped.
+    int start1, size1, start2, size2;
+    inFifo.prepareToWrite (frames, start1, size1, start2, size2);
+    auto put = [&] (int start, int size, int from)
     {
-        const int n = juce::jmin (256, frames - done);
-        for (int i = 0; i < n; ++i)
+        for (int i = 0; i < size; ++i)
         {
-            const auto l = (int16_t) juce::jlimit (-32768.0f, 32767.0f, left[done + i] * 32767.0f);
-            const auto r = (int16_t) juce::jlimit (-32768.0f, 32767.0f, right[done + i] * 32767.0f);
-            buf[i * 4] = (uint8_t) (l & 0xff);
-            buf[i * 4 + 1] = (uint8_t) ((l >> 8) & 0xff);
-            buf[i * 4 + 2] = (uint8_t) (r & 0xff);
-            buf[i * 4 + 3] = (uint8_t) ((r >> 8) & 0xff);
+            inBuf[(size_t) (start + i) * 2] = (int16_t) juce::jlimit (-32768.0f, 32767.0f, left[from + i] * 32767.0f);
+            inBuf[(size_t) (start + i) * 2 + 1] = (int16_t) juce::jlimit (-32768.0f, 32767.0f, right[from + i] * 32767.0f);
         }
-        send (0x85, buf, n * 4);
-        done += n;
+    };
+    put (start1, size1, 0);
+    put (start2, size2, size1);
+    inFifo.finishedWrite (size1 + size2);
+    inReady.signal();
+}
+
+void EmulatorLink::InputSender::run()
+{
+    uint8_t buf[256 * 4];
+    while (! threadShouldExit())
+    {
+        link.inReady.wait (20);
+        while (link.inFifo.getNumReady() > 0 && ! threadShouldExit())
+        {
+            int start1, size1, start2, size2;
+            link.inFifo.prepareToRead (256, start1, size1, start2, size2);
+            int n = 0;
+            auto take = [&] (int start, int size)
+            {
+                for (int i = 0; i < size; ++i, ++n)
+                {
+                    const int16_t l = link.inBuf[(size_t) (start + i) * 2];
+                    const int16_t r = link.inBuf[(size_t) (start + i) * 2 + 1];
+                    buf[n * 4] = (uint8_t) (l & 0xff);
+                    buf[n * 4 + 1] = (uint8_t) ((l >> 8) & 0xff);
+                    buf[n * 4 + 2] = (uint8_t) (r & 0xff);
+                    buf[n * 4 + 3] = (uint8_t) ((r >> 8) & 0xff);
+                }
+            };
+            take (start1, size1);
+            take (start2, size2);
+            link.inFifo.finishedRead (n);
+            link.send (0x85, buf, n * 4);
+        }
     }
 }
 
