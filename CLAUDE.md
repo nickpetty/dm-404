@@ -79,6 +79,15 @@ a later page-0/1 write stops it. Page 9 lights too (MARK, once skip back
 has triggered data). Mode changes also send a Roland DT1 SysEx
 (F0 41 10 00 00 00 00 08 12 02 02 00 00 ...), apparently the tempo (00 03 07 00 = 88.0).
 
+Effects are not computed by the i.MX: the TX lines carry dry buses
+(pads on line 3 words 2/3 = bus 1) to Roland's BMC sound chip, which mixes
+them and runs the effects. The app only sends it parameters, as DT1 SysEx
+over the BMC UART (F0 41 10 00 00 00 00 08 12 addr[4] data.. sum F7; ~2000
+at boot). Seen: 02 02 00 0a <- 00 01 engages FILTER+DRIVE; CTRL 1/2 write
+03 00 01 00 / 03 00 01 02 (two data bytes, e.g. 0c 04). APP0 is the BMC's
+firmware: 0-0x4c000 encrypted (entropy 8), Thumb code at 0x140000, float
+tables from 0x1f0000. Our BMC stand-in ignores the SysEx, so audio is dry.
+
 Inputs: the frontend streams the audio device's input over the link; it is
 mixed into SAI RX line 0 words 0/1, where sampling and the REC meter read.
 The same words carry the resampling loopback (TX line 3 words 0-7, at
