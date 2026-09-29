@@ -67,6 +67,10 @@ public:
     // level; pads: a dim colour) on page 1.
     void setLedState (int page, int index, int value);
 
+    // SHIFT: a click latches it (the firmware sees it held until the next
+    // click); the computer's Shift key holds it for as long as it is down.
+    void setShiftFromKeyboard (bool down);
+
     static juce::File bindingsFile();
     void loadBindings();
     void saveBindings() const;
@@ -84,6 +88,8 @@ private:
     PanelControl* learning = nullptr;
     float dragStartValue = 0;
     int encoderSent = 0;
+    bool shiftLatched = false, shiftKeyboard = false;
+    void updateShift();
     bool encoderMoved = false;
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":
     // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.

@@ -357,6 +357,16 @@ void PanelComponent::paint (juce::Graphics& g)
                 break;
             }
         }
+        if (c.name == "SHIFT" && c.pressed)
+        {
+            // Held (latched or by the keyboard): a bright ring and a tag.
+            g.setColour (juce::Colours::white);
+            g.drawRoundedRectangle (r.expanded (1.5f), 4.0f, 2.0f);
+            auto tag = r.withY (r.getBottom() + 2.0f).withHeight (r.getHeight() * 0.5f);
+            g.setColour (accent());
+            g.setFont (juce::FontOptions (tag.getHeight() * 0.9f, juce::Font::bold));
+            g.drawText (shiftLatched ? "HELD" : "SHIFT KEY", tag, juce::Justification::centred);
+        }
         if (c.sub.isNotEmpty())
         {
             // The SHIFT function, printed under the key (boxed under pads).
@@ -417,6 +427,23 @@ void PanelComponent::setKnob (PanelControl& c, float v)
     repaint();
 }
 
+void PanelComponent::updateShift()
+{
+    for (auto& c : controls)
+        if (c.name == "SHIFT")
+        {
+            const bool held = shiftLatched || shiftKeyboard;
+            if (held != c.pressed)
+                press (c, held);
+        }
+}
+
+void PanelComponent::setShiftFromKeyboard (bool down)
+{
+    shiftKeyboard = down;
+    updateShift();
+}
+
 void PanelComponent::mouseDown (const juce::MouseEvent& e)
 {
     auto* c = hit (e.position);
@@ -426,6 +453,12 @@ void PanelComponent::mouseDown (const juce::MouseEvent& e)
     {
         learning = (learning == c) ? nullptr : c;
         repaint();
+        return;
+    }
+    if (c->name == "SHIFT")
+    {
+        shiftLatched = ! shiftLatched;
+        updateShift();
         return;
     }
     active = c;

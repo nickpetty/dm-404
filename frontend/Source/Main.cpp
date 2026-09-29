@@ -56,6 +56,7 @@ public:
 
         startTimerHz (60);
         setSize (1280, 900);
+        setWantsKeyboardFocus (true);
     }
 
     ~MainComponent() override
@@ -75,6 +76,43 @@ public:
         const int panelW = juce::jmin (r.getWidth() / 2, r.getHeight() * 100 / 160);
         panel.setBounds (r.removeFromLeft (panelW));
         debug.setBounds (r);
+    }
+
+public:
+    void modifierKeysChanged (const juce::ModifierKeys& mods) override
+    {
+        panel.setShiftFromKeyboard (mods.isShiftDown());
+    }
+
+    // --test-audio: hit pad 3 once a second for 8 s, write what went to the
+    // audio device as a WAV, return. For checking the audio path unattended.
+    void runAudioTest (const juce::File& out, std::function<void()> done)
+    {
+        recording = true;
+        for (int i = 0; i < 8; ++i)
+        {
+            juce::Timer::callAfterDelay (1000 * i + 200, [this] { link.sendKnob (0, 4, 5, 300); });
+            juce::Timer::callAfterDelay (1000 * i + 300, [this] { link.sendKnob (0, 4, 5, 4095); });
+        }
+        juce::Timer::callAfterDelay (9000, [this, out, done]
+        {
+            recording = false;
+            juce::AudioBuffer<float> buf;
+            {
+                const juce::SpinLock::ScopedLockType sl (recordLock);
+                buf.setSize (2, (int) recorded[0].size());
+                buf.copyFrom (0, 0, recorded[0].data(), buf.getNumSamples());
+                buf.copyFrom (1, 0, recorded[1].data(), buf.getNumSamples());
+            }
+            out.deleteFile();
+            juce::WavAudioFormat wav;
+            if (auto w = wav.createWriterFor (new juce::FileOutputStream (out), deviceRate.load(), 2, 16, {}, 0))
+            {
+                w->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
+                delete w;
+            }
+            done();
+        });
     }
 
 private:
@@ -144,33 +182,59 @@ private:
         if (numOut < 2)
             return;
 
-        // The emulator makes 48 kHz; other device rates are resampled. The
-        // FIFO is kept a little ahead of the device: when the emulator runs
-        // fast, the surplus is dropped rather than letting latency grow.
-        const double ratio = 48000.0 / deviceRate.load();
-        const int target = juce::jmax (1024, (int) (numSamples * ratio) * 3);
-        if (const int backlog = link.audioBacklog(); backlog > target * 4)
-        {
-            const int drop = backlog - target;
-            scratchL.resize ((size_t) drop);
-            scratchR.resize ((size_t) drop);
-            link.readAudio (scratchL.data(), scratchR.data(), drop);
-        }
+        // The emulator makes 48 kHz audio, but not at an even pace (it waits
+        // on the firmware), and the device's clock is not the emulator's.
+        // Everything goes through a resampler whose rate is steered, by at
+        // most 0.5%, to hold a cushion of about 30 ms in the FIFO: no clicks
+        // from running dry or from skipping ahead. Input is staged, so no
+        // sample is ever thrown away between callbacks.
+        const double base = 48000.0 / deviceRate.load();
+        const double target = 1440.0;                       // 30 ms at 48 kHz
+        const double fill = link.audioBacklog() + (double) staged;
 
-        if (std::abs (ratio - 1.0) < 1.0e-6)
+        if (fill > target * 8)
         {
-            link.readAudio (out[0], out[1], numSamples);
+            // Far behind (the device stalled, or the emulator burst ahead):
+            // one jump back to the cushion is better than seconds of lag.
+            const int drop = (int) (fill - target) - staged;
+            scratchL.resize ((size_t) juce::jmax (0, drop));
+            scratchR.resize ((size_t) juce::jmax (0, drop));
+            link.readAudio (scratchL.data(), scratchR.data(), juce::jmax (0, drop));
+        }
+        // Too full: consume a little faster; too low: a little slower.
+        const double want = juce::jlimit (-1.0, 1.0, (fill - target) / target) * 0.005;
+        steer += (want - steer) * 0.02;
+        const double ratio = base * (1.0 + steer);
+
+        const int needed = (int) std::ceil (numSamples * ratio) + 4;
+        if (staged < needed)
+        {
+            inL.resize ((size_t) needed);
+            inR.resize ((size_t) needed);
+            staged += link.readAudio (inL.data() + staged, inR.data() + staged, needed - staged);
+        }
+        if (staged < needed)
+        {
+            // Dry: wait for the cushion to build up again rather than play
+            // fragments.
+            primed = false;
             return;
         }
-        const int need = (int) std::ceil (numSamples * ratio) + 4;
-        if (link.audioBacklog() < need)
-            return;                                     // underrun: silence
-        inL.resize ((size_t) need);
-        inR.resize ((size_t) need);
-        const int got = link.readAudio (inL.data(), inR.data(), need);
-        const int usedL = resampleL.process (ratio, inL.data(), out[0], numSamples, got, 0);
-        resampleR.process (ratio, inR.data(), out[1], numSamples, got, 0);
-        juce::ignoreUnused (usedL);
+        if (! primed && fill < target)
+            return;
+        primed = true;
+
+        const int used = resampleL.process (ratio, inL.data(), out[0], numSamples, staged, 0);
+        resampleR.process (ratio, inR.data(), out[1], numSamples, staged, 0);
+        if (recording.load())
+        {
+            const juce::SpinLock::ScopedLockType sl (recordLock);
+            recorded[0].insert (recorded[0].end(), out[0], out[0] + numSamples);
+            recorded[1].insert (recorded[1].end(), out[1], out[1] + numSamples);
+        }
+        std::memmove (inL.data(), inL.data() + used, sizeof (float) * (size_t) (staged - used));
+        std::memmove (inR.data(), inR.data() + used, sizeof (float) * (size_t) (staged - used));
+        staged -= used;
     }
 
     void audioDeviceAboutToStart (juce::AudioIODevice* dev) override
@@ -178,6 +242,9 @@ private:
         deviceRate = dev->getCurrentSampleRate();
         resampleL.reset();
         resampleR.reset();
+        staged = 0;
+        steer = 0.0;
+        primed = false;
         captureL.reset();
         captureR.reset();
     }
@@ -193,6 +260,12 @@ private:
     std::atomic<double> deviceRate { 48000.0 };
     juce::LagrangeInterpolator resampleL, resampleR, captureL, captureR;
     std::vector<float> inL, inR, scratchL, scratchR, capL, capR;
+    int staged = 0;                 // resampler input not yet consumed
+    std::atomic<bool> recording { false };
+    juce::SpinLock recordLock;
+    std::vector<float> recorded[2];
+    double steer = 0.0;             // rate correction holding the cushion
+    bool primed = false;
     uint32_t lastScreen = 0;
 };
 
@@ -209,6 +282,15 @@ public:
         // --snapshot FILE: render the window to a PNG once the emulator has
         // had time to boot, then quit (for testing without a screen grab).
         auto args = juce::StringArray::fromTokens (commandLine, true);
+        if (const int i = args.indexOf ("--test-audio"); i >= 0 && i + 1 < args.size())
+        {
+            const juce::File out (args[i + 1].unquoted());
+            juce::Timer::callAfterDelay (25000, [this, out]
+            {
+                if (auto* mc = dynamic_cast<MainComponent*> (window->getContentComponent()))
+                    mc->runAudioTest (out, [this] { quit(); });
+            });
+        }
         if (const int i = args.indexOf ("--snapshot"); i >= 0 && i + 1 < args.size())
         {
             const juce::File out (args[i + 1].unquoted());
