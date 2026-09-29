@@ -143,14 +143,12 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
     for (int i = 0; i < 9; ++i)
         at (row3[i], T::button, row3x[i], 507, i < 3 ? 50.0f : 36.0f, 30);
 
-    // The right-hand column beside the pads.
-    at ("BUS FX", T::button, 472, 571, 72, 62);
-    at ("HOLD", T::button, 472, 651, 72, 62);
-    at ("EXT SOURCE", T::button, 472, 733, 72, 62);
-    at ("SUB PAD", T::button, 472, 813, 72, 62);
-
-    // The 16 pads: 1-4 along the top, 13-16 along the bottom.
+    // The 16 pads: 1-4 along the top, 13-16 along the bottom, and the
+    // right-hand column beside them, row for row.
     const float padX[] = { 97, 191, 285, 378 }, padY[] = { 585, 665, 747, 827 };
+    const char* column[] = { "BUS FX", "HOLD", "EXT SOURCE", "SUB PAD" };
+    for (int r = 0; r < 4; ++r)
+        at (column[r], T::button, 472, padY[r] - 4, 72, 62);
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c)
             at (juce::String (r * 4 + c + 1), T::pad, padX[c], padY[r] - 4, 78, 62);
@@ -279,8 +277,14 @@ juce::Rectangle<float> PanelComponent::toScreen (juce::Rectangle<float> r) const
 
 void PanelComponent::resized()
 {
-    // The OLED sits in a round window: 128x64 at the unit's proportions.
-    oled.setBounds (toScreen ({ 34.2f, 40.2f, 31.6f, 18.8f }).toNearestInt());
+    // The OLED sits in the middle of its round window.
+    oled.setBounds (toScreen ({ 0, 0, 31.6f, 18.8f }).withCentre (displayDisc().getCentre()).toNearestInt());
+}
+
+juce::Rectangle<float> PanelComponent::displayDisc() const
+{
+    auto disc = toScreen ({ 30.0f, 27.0f, 40.0f, 0 });
+    return disc.withHeight (disc.getWidth());
 }
 
 void PanelComponent::paint (juce::Graphics& g)
@@ -289,9 +293,7 @@ void PanelComponent::paint (juce::Graphics& g)
     // The round display window and the dark band behind the knobs.
     g.setColour (juce::Colours::black);
     g.fillRoundedRectangle (toScreen ({ 10, 11, 80, 12 }), 8.0f);
-    auto disc = toScreen ({ 30.0f, 27.0f, 40.0f, 0 });
-    disc.setHeight (disc.getWidth());
-    g.fillEllipse (disc);
+    g.fillEllipse (displayDisc());
     g.setColour (juce::Colour (0xff111214));
     g.fillRoundedRectangle (toScreen ({ 11, 30, 20, 30 }), 10.0f);
     g.fillRoundedRectangle (toScreen ({ 69, 30, 20, 30 }), 10.0f);
@@ -335,12 +337,14 @@ void PanelComponent::paint (juce::Graphics& g)
                 const float rad = k.getWidth() * 0.4f;
                 g.setColour (ink());
                 g.drawLine (centre.x, centre.y, centre.x + rad * std::cos (a), centre.y - rad * std::sin (a), 2.5f);
-                g.setFont (juce::FontOptions (r.getHeight() * 0.22f));
-                // Knob names are printed above the knob, as on the unit;
-                // VALUE's below it.
-                g.drawText (c.name, c.name == "VALUE" ? r.withY (r.getBottom()).withHeight (r.getHeight() * 0.3f)
-                                                      : r.withY (r.getY() - r.getHeight() * 0.3f).withHeight (r.getHeight() * 0.3f),
-                            juce::Justification::centred);
+                // Knob names are printed above the knob, as on the unit
+                // (VALUE has none: PUSH ENTER is printed above it).
+                if (c.name != "VALUE")
+                {
+                    g.setFont (juce::FontOptions (r.getHeight() * 0.22f));
+                    g.drawText (c.name, r.withY (r.getY() - r.getHeight() * 0.3f).withHeight (r.getHeight() * 0.3f),
+                                juce::Justification::centred);
+                }
                 break;
             }
             case PanelControl::Type::button:
@@ -356,10 +360,34 @@ void PanelComponent::paint (juce::Graphics& g)
                     g.setColour ((red ? juce::Colour (0xffff2a3a) : accent()).withAlpha (0.12f + 0.78f * level));
                     g.fillRoundedRectangle (r, 3.0f);
                 }
-                g.setColour (ink());
-                g.setFont (juce::FontOptions (juce::jmin (r.getHeight() * 0.36f, r.getWidth() * 0.19f)));
-                g.drawFittedText (c.name.replace ("/", "/ ").replace ("+", "+ "), r.reduced (2.0f).toNearestInt(),
-                                  juce::Justification::centred, 2, 0.8f);
+                // Names as large as the key allows, on up to two lines.
+                g.setColour (juce::Colours::white);
+                const bool twoLines = c.name.length() > 4;
+                auto text = twoLines ? c.name.replace ("/", "/ ").replace ("+", "+ ") : c.name;
+                if (c.bounds.getHeight() < 6.0f)
+                    text = text.replaceFirstOccurrenceOf (" ", "\n");   // small keys: always two lines
+                // Shrunk only as far as the longest line needs (squeezed
+                // up to 20% narrower first).
+                if (! text.contains ("\n") && text.contains (" "))
+                {
+                    // Big keys: one line if it fits, else two.
+                    juce::Font one (juce::FontOptions (r.getHeight() * 0.4f, juce::Font::bold));
+                    if (juce::GlyphArrangement::getStringWidth (one, text) > (r.getWidth() - 3.0f) / 0.8f)
+                        text = text.replaceFirstOccurrenceOf (" ", "\n");
+                }
+                const auto lines = juce::StringArray::fromLines (text);
+                juce::Font font (juce::FontOptions (r.getHeight() * (lines.size() > 1 ? 0.4f : 0.48f), juce::Font::bold));
+                float widest = 0.0f;
+                for (auto& line : lines)
+                    widest = juce::jmax (widest, juce::GlyphArrangement::getStringWidth (font, line));
+                const float room = (r.getWidth() - 3.0f) / 0.8f;
+                if (widest > room)
+                    font = font.withHeight (font.getHeight() * room / widest);
+                g.setFont (font);
+                const float lineH = font.getHeight() * 1.02f;
+                auto block = r.withSizeKeepingCentre (r.getWidth() - 2.0f, lineH * (float) lines.size());
+                for (auto& line : lines)
+                    g.drawFittedText (line, block.removeFromTop (lineH).toNearestInt(), juce::Justification::centred, 1, 0.8f);
                 break;
             }
             case PanelControl::Type::pad:
@@ -403,7 +431,7 @@ void PanelComponent::paint (juce::Graphics& g)
                 break;
             }
         }
-        if (c.name == "SHIFT" && c.pressed)
+        if ((c.name == "SHIFT" && c.pressed) || c.latched)
         {
             // Held (latched or by the keyboard): a bright ring and a tag.
             g.setColour (juce::Colours::white);
@@ -411,13 +439,15 @@ void PanelComponent::paint (juce::Graphics& g)
             auto tag = r.withY (r.getBottom() + 2.0f).withHeight (r.getHeight() * 0.5f);
             g.setColour (accent());
             g.setFont (juce::FontOptions (tag.getHeight() * 0.9f, juce::Font::bold));
-            g.drawText (shiftLatched ? "HELD" : "SHIFT KEY", tag, juce::Justification::centred);
+            g.drawText (c.name != "SHIFT" || shiftLatched ? "HELD" : "SHIFT KEY", tag, juce::Justification::centred);
         }
         if (c.sub.isNotEmpty())
         {
             // The SHIFT function, printed under the key (boxed under pads).
-            auto s = r.withY (r.getBottom() + r.getHeight() * 0.06f).withHeight (juce::jmax (9.0f, getHeight() / panelH * 2.6f));
-            g.setColour (ink().withAlpha (0.85f));
+            auto s = r.withY (r.getBottom() + r.getHeight() * 0.06f).withHeight (juce::jmax (10.0f, getHeight() / panelH * 3.0f));
+            if (c.type == PanelControl::Type::button)
+                s = s.expanded (r.getWidth() * 0.3f, 0.0f);     // may run wider than its key
+            g.setColour (ink());
             g.setFont (juce::FontOptions (s.getHeight() * 0.8f));
             g.drawFittedText (c.sub, s.toNearestInt(), juce::Justification::centred, 1, 0.6f);
             if (c.type == PanelControl::Type::pad)
@@ -522,6 +552,22 @@ void PanelComponent::mouseDown (const juce::MouseEvent& e)
         updateShift();
         return;
     }
+    if (c->latched)
+    {
+        // Latched: this click lets it go.
+        c->latched = false;
+        press (*c, false);
+        return;
+    }
+    if (e.mods.isCtrlDown() && c->type == PanelControl::Type::button)
+    {
+        // Ctrl-click: held until the next click, for the firmware's
+        // hold-and-turn and hold-and-pad combinations (MFX + VALUE or a
+        // pad picks an effect).
+        c->latched = true;
+        press (*c, true);
+        return;
+    }
     active = c;
     if (c->name == "VALUE")
     {
@@ -558,6 +604,31 @@ void PanelComponent::mouseDrag (const juce::MouseEvent& e)
     }
     if (active != nullptr && active->type == PanelControl::Type::knob)
         setKnob (*active, dragStartValue - e.getDistanceFromDragStartY() / 200.0f);
+}
+
+void PanelComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
+{
+    // The wheel turns the knob under the pointer, even while another
+    // control is held down with the button (hold MFX, scroll over VALUE).
+    auto* c = hit (e.position);
+    if (c == nullptr || c->type != PanelControl::Type::knob)
+        return;
+    const float delta = w.deltaY * (w.isReversed ? -1.0f : 1.0f);
+    if (c->name == "VALUE")
+    {
+        // One detent per wheel notch (JUCE reports ~0.1 per notch).
+        wheelAccum += delta;
+        const int detents = (int) (wheelAccum / 0.1f);
+        if (detents != 0)
+        {
+            wheelAccum -= (float) detents * 0.1f;
+            link.sendEncoder (detents);
+            c->value = std::fmod (c->value + 0.04f * (float) detents + 10.0f, 1.0f);
+            repaint();
+        }
+        return;
+    }
+    setKnob (*c, c->value + delta * 0.25f);
 }
 
 void PanelComponent::mouseUp (const juce::MouseEvent&)

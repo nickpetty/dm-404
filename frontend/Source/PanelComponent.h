@@ -31,6 +31,7 @@ struct PanelControl
     juce::String sub;                   // printed under it (the SHIFT function)
     juce::String legend;                // printed on a pad (its DJ-mode role)
     bool pressed = false;
+    bool latched = false;               // ctrl-clicked: held until clicked again
     float value = 0.5f;                 // knobs, 0-1
 };
 
@@ -55,6 +56,7 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 
     OledView& getOled() { return oled; }
 
@@ -74,6 +76,8 @@ public:
 
     // SHIFT: a click latches it (the firmware sees it held until the next
     // click); the computer's Shift key holds it for as long as it is down.
+    // Other keys latch on ctrl-click, and the mouse wheel turns the knob
+    // under the pointer, also while another control is held.
     void setShiftFromKeyboard (bool down);
 
     // Tap a control by its printed name (for scripted tests).
@@ -85,6 +89,7 @@ public:
 
 private:
     juce::Rectangle<float> toScreen (juce::Rectangle<float>) const;
+    juce::Rectangle<float> displayDisc() const;
     PanelControl* hit (juce::Point<float>);
     void press (PanelControl&, bool down, float velocity = 1.0f);
     void setKnob (PanelControl&, float v);
@@ -99,6 +104,7 @@ private:
     bool shiftLatched = false, shiftKeyboard = false;
     void updateShift();
     bool encoderMoved = false;
+    float wheelAccum = 0.0f;
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":
     // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.
     std::array<uint8_t, 128> leds {};

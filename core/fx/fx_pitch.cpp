@@ -25,17 +25,26 @@ float CombGain(float fb)
     return std::sqrt(std::fmax(1.f - fb * fb, 1e-4f)) * 0.5f * 3.2f;
 }
 
-// A tuned feedback comb with a damping filter: one resonator voice.
+// A tuned feedback comb with a damping filter: one resonator voice. A new
+// pitch glides in over ~20 ms (the delay's read point moves smoothly), so
+// turning ROOT/NOTE sweeps the ringing instead of clicking at every step.
 class Comb
 {
   public:
     Delay  d{0.06f};
     Biquad damp;
-    float  period = 100.f, fb = 0.9f;
+    float  period = 0.f, target = 100.f, glide = 0.001f, fb = 0.9f;
 
-    void  Tune(float sr, float hz) { period = Clamp(sr / hz, 2.f, 2800.f); }
+    void Tune(float sr, float hz)
+    {
+        target = Clamp(sr / hz, 2.f, 2800.f);
+        glide  = 1.f - std::exp(-1.f / (0.02f * sr));
+        if(period <= 0.f)
+            period = target;
+    }
     float Process(float x)
     {
+        period += glide * (target - period);
         const float y = d.Read(period);
         d.Write(x + damp.Process(y) * fb);
         return y;
@@ -51,7 +60,7 @@ class Resonator : public Effect
 {
     Comb    c_[2][4];
     Biquad2 lowcut_;
-    float   env_ = 0.f;
+    float   env_ = 0.f, fb_ = 0.9f;
 
   public:
     void Changed(int) override
@@ -73,11 +82,12 @@ class Resonator : public Effect
         const float a = std::fabs(l) + std::fabs(r);
         env_ += (a > env_ ? 0.01f : 0.0003f) * (a - env_);
         const float fb = Clamp(0.9f + N(FEEDBACK) * 0.098f + env_ * N(ENV_MOD) * 0.05f, 0.f, 0.998f);
-        const float g  = CombGain(fb);
+        fb_ += 0.002f * (fb - fb_);
+        const float g = CombGain(fb_);
         float       wl = 0.f, wr = 0.f;
         for(int v = 0; v < 4; v++)
         {
-            c_[0][v].fb = c_[1][v].fb = fb;
+            c_[0][v].fb = c_[1][v].fb = fb_;
             wl += c_[0][v].Process(l * g);
             wr += c_[1][v].Process(r * g);
         }
@@ -97,7 +107,7 @@ class HyperReso : public Effect
 {
     Comb    c_[2][4];
     Biquad2 lowcut_;
-    float   env_ = 0.f;
+    float   env_ = 0.f, fb_ = 0.9f;
 
   public:
     void Changed(int) override
@@ -124,11 +134,12 @@ class HyperReso : public Effect
         const float fb = Clamp(0.9f + (p_[FEEDBACK] ? N(FEEDBACK) : 0.5f) * 0.095f
                                    + env_ * N(ENV_MOD) * 0.05f,
                                0.f, 0.998f);
-        const float g = CombGain(fb);
+        fb_ += 0.002f * (fb - fb_);
+        const float g = CombGain(fb_);
         float       wl = 0.f, wr = 0.f;
         for(int v = 0; v < 4; v++)
         {
-            c_[0][v].fb = c_[1][v].fb = fb;
+            c_[0][v].fb = c_[1][v].fb = fb_;
             wl += c_[0][v].Process(l * g);
             wr += c_[1][v].Process(r * g);
         }

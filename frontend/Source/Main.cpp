@@ -57,6 +57,8 @@ public:
         startTimerHz (60);
         setSize (1280, 900);
         setWantsKeyboardFocus (true);
+        if (! settings->getBoolValue ("debugShown", true))
+            setDebugShown (false);
     }
 
     ~MainComponent() override
@@ -66,9 +68,18 @@ public:
         link.stop();
     }
 
+    void paint (juce::Graphics& g) override { g.fillAll (juce::Colours::black); }
+
     void resized() override
     {
         auto r = getLocalBounds();
+        if (! debugShown)
+        {
+            // Just the panel, centred, at the unit's 100:160 proportions.
+            const int w = juce::jmin (r.getWidth(), r.getHeight() * 100 / 160);
+            panel.setBounds (r.withSizeKeepingCentre (w, juce::jmin (r.getHeight(), w * 160 / 100)));
+            return;
+        }
         auto bottom = r.removeFromBottom (24);
         audioButton.setBounds (bottom.removeFromRight (140).reduced (2));
         status.setBounds (bottom);
@@ -76,6 +87,41 @@ public:
         const int panelW = juce::jmin (r.getWidth() / 2, r.getHeight() * 100 / 160);
         panel.setBounds (r.removeFromLeft (panelW));
         debug.setBounds (r);
+    }
+
+    // ` shows or hides the debug drawer and the status bar; the window
+    // narrows to the panel and widens again (unless maximised).
+    bool keyPressed (const juce::KeyPress& key) override
+    {
+        if (key.getTextCharacter() != '`')
+            return false;
+        setDebugShown (! debugShown);
+        return true;
+    }
+
+    void setDebugShown (bool shown)
+    {
+        debugShown = shown;
+        for (juce::Component* c : { (juce::Component*) &debug, (juce::Component*) &status, (juce::Component*) &audioButton })
+            c->setVisible (shown);
+        settings->setValue ("debugShown", shown);
+        settings->saveIfNeeded();
+        auto* top = getTopLevelComponent();
+        auto* window = dynamic_cast<juce::ResizableWindow*> (top);
+        if (window != nullptr && ! window->isFullScreen() && ! window->isMinimised())
+        {
+            const int panelW = getHeight() * 100 / 160;
+            if (! shown)
+            {
+                debugWidth = juce::jmax (0, getWidth() - panelW);
+                setSize (panelW, getHeight());
+            }
+            else
+                setSize (panelW + (debugWidth > 0 ? debugWidth : panelW), getHeight());
+        }
+        resized();
+        if (isShowing())
+            grabKeyboardFocus();
     }
 
 public:
@@ -316,6 +362,8 @@ private:
     std::atomic<double> cushion { 2880.0 };     // frames at 48 kHz
     std::atomic<juce::uint32> lastUnderrunMs { 0 };
     uint32_t lastScreen = 0;
+    bool debugShown = true;
+    int debugWidth = 0;             // what the drawer had before it was hidden
 };
 
 class Doom404Application : public juce::JUCEApplication
