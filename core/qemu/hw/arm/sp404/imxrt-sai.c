@@ -22,6 +22,9 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "qemu/main-loop.h"
+#include "qemu/thread.h"
+#include "system/runstate.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
@@ -175,35 +178,52 @@ static void sai_frame(IMXRTSAI *s)
     sai_update(s);
 }
 
-static void sai_tick(void *opaque)
+/*
+ * Clock the next block if it is due and the software is ready for it.
+ * Returns when to look again (virtual ns), or -1 when stopped.
+ *
+ * The hardware plays on regardless, but here the emulated CPU runs in a
+ * different thread from this clock: a block clocked out before the
+ * firmware has rendered the next buffer would play stale data. So a due
+ * block waits (briefly: a stuck handler must not stop the clock) until the
+ * machine's ready hook agrees, and blocks that fell behind are caught up
+ * one at a time, each waiting for the software again.
+ */
+static int64_t sai_step(IMXRTSAI *s, int64_t now)
 {
-    IMXRTSAI *s = opaque;
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     int i;
 
     if (!sai_running(s)) {
-        return;
+        return -1;
     }
-    /*
-     * The hardware plays on regardless, but here the emulated CPU and this
-     * timer run in different threads: a block clocked out before the
-     * firmware's interrupt handler has refilled the buffer would play stale
-     * or cleared data. Wait for it (briefly: a stuck handler must not stop
-     * the clock for good).
-     */
+    if (now < s->next_tick) {
+        return s->next_tick;
+    }
     if (s->ready && !s->ready(s->ready_opaque)) {
         if (!s->stall_start) {
             s->stall_start = now;
         }
         if (now - s->stall_start < 5 * SCALE_MS) {
-            timer_mod(s->timer, now + 50 * SCALE_US);
-            return;
+            return now + 100 * SCALE_US;
         }
         s->late_blocks++;
         SP404_TRACE("sai", "%s: block played late (%" PRIu64 " so far)",
                     s->name ? s->name : "?", s->late_blocks);
     }
+    if (s->stall_start) {
+        int64_t waited = now - s->stall_start;
+
+        s->stall_total += waited;
+        s->stall_max = MAX(s->stall_max, waited);
+    }
     s->stall_start = 0;
+    if (++s->stat_blocks == 750) {
+        SP404_TRACE("sai-stall", "%s: 750 blocks, waited %" PRId64 " us in all, "
+                    "longest %" PRId64 " us", s->name ? s->name : "?",
+                    s->stall_total / 1000, s->stall_max / 1000);
+        s->stat_blocks = 0;
+        s->stall_total = s->stall_max = 0;
+    }
     for (i = 0; i < BLOCK; i++) {
         sai_frame(s);
     }
@@ -212,7 +232,89 @@ static void sai_tick(void *opaque)
     if (s->next_tick < now - NANOSECONDS_PER_SECOND / 10) {
         s->next_tick = now;     /* fell far behind: do not try to catch up */
     }
-    timer_mod(s->timer, s->next_tick);
+    /* Due again already (catching up)? Give the software its turn first. */
+    return MAX(s->next_tick, now + 20 * SCALE_US);
+}
+
+static void sai_tick(void *opaque)
+{
+    IMXRTSAI *s = opaque;
+    int64_t next = sai_step(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+
+    if (next >= 0 && !s->precise) {
+        timer_mod(s->timer, next);
+    }
+}
+
+/*
+ * The precise clock: a host thread that sleeps with sub-millisecond
+ * accuracy (QEMU's own timers wake the main loop only every millisecond or
+ * so on Windows, which bunches blocks and lets the waits add up to lost
+ * real time) and runs sai_step under the BQL.
+ */
+static void sai_sleep_until(IMXRTSAI *s, int64_t deadline)
+{
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    if (deadline <= now) {
+        return;
+    }
+#ifdef _WIN32
+    if (s->hr_timer) {
+        LARGE_INTEGER due;
+
+        due.QuadPart = -((deadline - now) / 100);       /* 100 ns units */
+        if (due.QuadPart == 0) {
+            due.QuadPart = -1;
+        }
+        SetWaitableTimer(s->hr_timer, &due, 0, NULL, NULL, FALSE);
+        WaitForSingleObject(s->hr_timer, INFINITE);
+        return;
+    }
+#endif
+    g_usleep(MAX(1, (deadline - now) / 1000));
+}
+
+static void *sai_clock_thread(void *opaque)
+{
+    IMXRTSAI *s = opaque;
+
+#ifdef _WIN32
+    s->hr_timer = CreateWaitableTimerExW(NULL, NULL,
+                                         CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                         TIMER_ALL_ACCESS);
+#endif
+    while (!qatomic_read(&s->clock_stop)) {
+        int64_t next;
+
+        bql_lock();
+        next = runstate_is_running() ?
+               sai_step(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) : -1;
+        bql_unlock();
+        sai_sleep_until(s, next >= 0 ? next :
+                        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 2 * SCALE_MS);
+    }
+    return NULL;
+}
+
+void imxrt_sai_start_precise_clock(IMXRTSAI *s)
+{
+    s->precise = true;
+    timer_del(s->timer);
+    qemu_thread_create(&s->clock_thread, "sai-clock", sai_clock_thread, s,
+                       QEMU_THREAD_JOINABLE);
+}
+
+void imxrt_sai_kick(IMXRTSAI *s)
+{
+    /*
+     * Waiting on the software, which has just caught up: go on at once
+     * rather than at the next poll, which on some hosts (Windows timers
+     * have millisecond granularity) comes late enough to lose real time.
+     */
+    if (s->stall_start && sai_running(s)) {
+        sai_tick(s);
+    }
 }
 
 static void sai_start_stop(IMXRTSAI *s, bool was_running)
@@ -220,7 +322,9 @@ static void sai_start_stop(IMXRTSAI *s, bool was_running)
     if (sai_running(s) && !was_running) {
         s->next_tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                        (int64_t)BLOCK * NANOSECONDS_PER_SECOND / s->rate;
-        timer_mod(s->timer, s->next_tick);
+        if (!s->precise) {
+            timer_mod(s->timer, s->next_tick);
+        }
         SP404_TRACE("sai", "%s running at %u Hz", s->name ? s->name : "?",
                     s->rate);
     } else if (!sai_running(s)) {

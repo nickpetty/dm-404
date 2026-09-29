@@ -16,6 +16,7 @@
 #include "hw/arm/armv7m.h"
 #include "qom/object.h"
 #include "qemu/bitmap.h"
+#include "qemu/thread.h"
 #include "hw/ssi/ssi.h"
 #include "chardev/char-fe.h"
 #include "ui/console.h"
@@ -149,6 +150,12 @@ struct IMXRTEDMA {
     DECLARE_BITMAP(dreq, IMXRT_DMAMUX_SOURCES);
     uint32_t pending_start;
     bool busy, again;
+    /*
+     * Told after software writes interrupt or request state (CINT, INT,
+     * SERQ, CERQ, ERQ ...), once the eDMA has acted on the write.
+     */
+    void (*int_cleared)(void *opaque, uint32_t unused);
+    void *int_cleared_opaque;
 };
 
 #define TYPE_IMXRT_LPSPI "imxrt-lpspi"
@@ -251,6 +258,15 @@ struct IMXRTSAI {
     void *ready_opaque;
     int64_t stall_start;
     uint64_t late_blocks;       /* played before the software caught up */
+    int stat_blocks;
+    int64_t stall_total, stall_max;
+    /* The precise clock (imxrt_sai_start_precise_clock). */
+    bool precise;
+    QemuThread clock_thread;
+    int clock_stop;
+#ifdef _WIN32
+    HANDLE hr_timer;
+#endif
     /* [0] transmitter, [1] receiver */
     uint32_t csr[2], cr1[2], cr2[2], cr3[2], cr4[2], cr5[2], mr[2];
     IMXRTSAIFifo fifo[2][4];
@@ -315,6 +331,15 @@ struct IMXRTADC {
     IMXRTADCTrig trig[8];
     uint32_t etc_ctrl, done0_1, done2_err, dma_ctrl, trig_level;
 };
+
+/*
+ * Clock the next block now if the SAI is waiting for the software (its
+ * ready hook said no): called when the reason for waiting has gone.
+ */
+void imxrt_sai_kick(IMXRTSAI *s);
+
+/* Clock the SAI from its own host thread with sub-millisecond sleeps. */
+void imxrt_sai_start_precise_clock(IMXRTSAI *s);
 
 /*
  * The SP-404's audio path as seen from the SAI: TX line 3 carries the

@@ -59,6 +59,9 @@ static const struct {
 #define SP404_DMAMUX_BASE       0x400ec000
 #define SP404_EDMA_ERROR_IRQ    16
 
+/* The audio render task's TCB state byte (firmware 5.52, task 1). */
+#define SP404_AUDIO_TCB_STATE   (0x202bbd1c + 0x23)
+
 /* LPUART1-8: base; IRQs are 20-27. LPUART3 is the BMC link. */
 static const hwaddr sp404_lpuart_base[] = {
     0x40184000, 0x40188000, 0x4018c000, 0x40190000,
@@ -426,15 +429,40 @@ static void sp404_link_encoder(void *opaque, int steps)
 }
 
 /*
- * The firmware's audio interrupts are the eDMA completions of channel 3
- * (the TX chain) and 4 (RX): until they are serviced, the next block's
- * buffers are not ready.
+ * The next audio block is ready when the firmware has serviced the eDMA
+ * completions of channel 3 (the TX chain) and 4 (RX) and re-armed channels
+ * 0-4 (their requests are disabled at the end of each major loop). The
+ * interrupt handler clears the flags first and re-arms later, once its
+ * task has rendered the block: the flags alone are not enough.
  */
 static bool sp404_audio_ready(void *opaque)
 {
     SP404Machine *m = opaque;
+    uint8_t state;
 
-    return !(m->edma.intr & ((1u << 3) | (1u << 4)));
+    if ((m->edma.intr & ((1u << 3) | (1u << 4))) ||
+        (m->edma.erq & 0x1f) != 0x1f) {
+        return false;
+    }
+    /*
+     * And the audio task has rendered: after each interrupt it wakes, flips
+     * the buffer half and fills the half that plays next (FUN_0001cf78),
+     * then waits on its event flag again. It runs as micro T-Kernel task 1;
+     * its TCB state byte (5.52: TCB table 0x202bbd1c, state at +0x23) has
+     * the WAIT bit (2) set once it is back waiting.
+     */
+    state = address_space_ldub(&address_space_memory, SP404_AUDIO_TCB_STATE,
+                               MEMTXATTRS_UNSPECIFIED, NULL);
+    return state & 2;
+}
+
+static void sp404_audio_dma_serviced(void *opaque, uint32_t channels)
+{
+    SP404Machine *m = opaque;
+
+    if (sp404_audio_ready(m)) {
+        imxrt_sai_kick(&m->sai[0]);
+    }
 }
 
 static void sp404_link_audio_in(void *opaque, const int16_t *lr, int frames)
@@ -660,6 +688,9 @@ static void sp404_init(MachineState *machine)
     sp404_audio_init(&m->audio, &m->sai[0]);
     m->sai[0].ready = sp404_audio_ready;
     m->sai[0].ready_opaque = m;
+    m->edma.int_cleared = sp404_audio_dma_serviced;
+    m->edma.int_cleared_opaque = m;
+    imxrt_sai_start_precise_clock(&m->sai[0]);
 
     object_initialize_child(OBJECT(machine), "pit", &m->pit, TYPE_IMXRT_PIT);
     sysbus_realize(SYS_BUS_DEVICE(&m->pit), &error_fatal);

@@ -454,6 +454,14 @@ static void edma_write(void *opaque, hwaddr offset, uint64_t val,
         }
     }
     edma_service(s);
+    /*
+     * Software changed request or interrupt state (and the service above
+     * has acted on it): whoever waits on the software can look again.
+     */
+    if (s->int_cleared && ((offset >= R_CEEI && offset <= R_CINT) ||
+                           offset == R_ERQ || offset == R_INT)) {
+        s->int_cleared(s->int_cleared_opaque, 0);
+    }
 }
 
 static uint64_t dmamux_read(void *opaque, hwaddr offset, unsigned size)

@@ -46,12 +46,16 @@ COPY 0x23, REMAIN 0x24, A/F-E/J 0x25-29, SHIFT 0x2a, FILTER+DRIVE-MFX
 0x2b-30, SUB PAD 0x31), and each key's LED index is its ID + 0x21.
 frontend/panel.json holds the resulting bindings.
 
-Audio timing: the firmware double-buffers only two 64-frame blocks (2.7 ms).
-The SAI clocks on a host timer while the CPU runs in its own thread, so the
-machine's ready hook holds each block until the TX/RX DMA interrupts
-(eDMA ch3/ch4) have been serviced (up to 5 ms): without it, streamed
-samples (projects exceed the 64 MB SDRAM and play from the eMMC) came out
-with silent blocks. icount mode was tried and stalls boot.
+Audio timing: the firmware double-buffers 64-frame blocks (1.33 ms each).
+The DMA interrupt (IRQ 3, FUN_80003408) re-arms channels 0-3 on the next
+half at once and wakes the audio task (FUN_0001cf78, micro T-Kernel task 1),
+which renders the other half and waits again. Emulated, the CPU and the SAI
+run in different threads, so the SAI clocks a block only when the firmware
+is ready for it (machine ready hook: DMA interrupts serviced, channels 0-4
+re-armed, task 1's TCB state back to WAIT; up to 5 ms), and it runs on its
+own host thread with high-resolution sleeps (QEMU timers on Windows wake
+only every millisecond or so, and those waits added up to seconds of lag).
+Projects exceed the 64 MB SDRAM and stream from the eMMC while playing.
 
 VOLUME is an analog pot after the DAC: the firmware never reads it, the
 frontend applies it as output gain. Audio: pads play into TX line 3 slots
