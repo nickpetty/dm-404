@@ -35,15 +35,17 @@ unpacks code to ITCM (0x400), DTCM, OCRAM and SDRAM 0x80000000
 | uSDHC1 / uSDHC2 | 0x402C0000 / 0x402C4000 | SD card (A:) / eMMC (B:, exFAT) |
 | PIT ch0 → XBAR 56→103 → ADC_ETC trig0 → ADC1 ch 4,5,6,3 | | analog scan, 2 kHz, through a mux addressed by GPIO2.27 (bit0), .30, .31 |
 | ADC1 ch4/ch5 mux 0-7 | | the 16 pads (pressure; idle reads 4095; map in frontend/panel.json) |
-| ADC1 ch6 mux 1/2/3, mux 4 | | CTRL 1/2/3; VALUE push (key 0x13) |
+| ADC1 ch6 mux 1/2/3, mux 4 | | CTRL 1/2/3; SUB PAD (pressure, key 0x13, LED 0x34) |
 | GPIO2.23-25 rows × GPIO2.20,21,22,28,26 cols | | key matrix, active low; IDs from table 0x82e48774 (FUN_8005da10) |
 | GPIO2.18/19 | | VALUE encoder quadrature, active low, 4 transitions per detent |
 | DWT_CYCCNT | 0xE0001004 | modelled in the machine (tempo clock reads it) |
 
 Key IDs follow the panel's reading order (BUS FX 0x10, HOLD 0x11, EXT
-SOURCE 0x12, VALUE push 0x13, PATTERN SELECT 0x14 ... ROLL 0x21, EXIT 0x22,
-COPY 0x23, REMAIN 0x24, A/F-E/J 0x25-29, SHIFT 0x2a, FILTER+DRIVE-MFX
-0x2b-30, SUB PAD 0x31), and each key's LED index is its ID + 0x21.
+SOURCE 0x12, SUB PAD 0x13 (analog), PATTERN SELECT 0x14 ... ROLL 0x21,
+EXIT 0x22, COPY 0x23, REMAIN 0x24, A/F-E/J 0x25-29, SHIFT 0x2a,
+FILTER+DRIVE-MFX 0x2b-30, VALUE push 0x31 = matrix row 7 col 3: menus take
+it as enter), and each key's LED index is its ID + 0x21. The VALUE turn
+reaches menus as keys 0x3f/0x40.
 frontend/panel.json holds the resulting bindings.
 
 Audio timing: the firmware double-buffers 64-frame blocks (1.33 ms each).

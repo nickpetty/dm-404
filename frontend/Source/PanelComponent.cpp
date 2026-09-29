@@ -539,12 +539,12 @@ void PanelComponent::mouseUp (const juce::MouseEvent&)
 {
     if (active != nullptr && active->name == "VALUE")
     {
-        if (! encoderMoved && active->binding.kind == Binding::Kind::analog)
+        if (! encoderMoved && active->binding.kind == Binding::Kind::key)
         {
-            // The push switch is read like a pad: pressed, then released.
-            const auto& b = active->binding;
-            link.sendKnob (b.adc, b.channel, b.mux, 0);
-            juce::Timer::callAfterDelay (120, [this, b] { link.sendKnob (b.adc, b.channel, b.mux, 4095); });
+            // A click pushes it: the push switch is a key in the matrix.
+            const auto b = active->binding;
+            link.sendKey (b.row, b.col, true);
+            juce::Timer::callAfterDelay (120, [this, b] { link.sendKey (b.row, b.col, false); });
         }
         active = nullptr;
         return;
