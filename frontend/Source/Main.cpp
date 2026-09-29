@@ -13,7 +13,19 @@ public:
         addAndMakeVisible (status);
         status.setColour (juce::Label::textColourId, juce::Colours::grey);
 
-        link.onBmcPacket = [this] (const uint8_t* p) { debug.logBmc (p); };
+        link.onBmcPacket = [this] (const uint8_t* p)
+        {
+            debug.logBmc (p);
+            if ((p[0] & 0x0f) == 1 && p[1] == 0x00)
+            {
+                const int idx = p[2], value = p[3];
+                juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<PanelComponent> (&panel), idx, value]
+                {
+                    if (safe != nullptr)
+                        safe->setLedState (idx, value);
+                });
+            }
+        };
 
         const auto error = link.start (EmulatorLink::defaultPaths());
         status.setText (error.isEmpty() ? "Starting emulator..." : error, juce::dontSendNotification);

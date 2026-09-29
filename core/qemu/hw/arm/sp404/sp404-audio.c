@@ -72,6 +72,33 @@ static void sp404_audio_frame(void *opaque,
     if (tx_words < 16) {
         return;
     }
+    /* SP404_TRACE=audio: once a second, the peak of every slot of every line. */
+    for (int ln = 0; ln < 4; ln++) {
+        for (int i = 0; i < 16; i++) {
+            int32_t v = abs(sext20(tx[ln][i]));
+            if (v > a->slot_peak[ln][i]) {
+                a->slot_peak[ln][i] = v;
+            }
+        }
+    }
+    if (++a->peak_frames == 48000) {
+        for (int ln = 0; ln < 4; ln++) {
+            char line[256];
+            int n = 0;
+            bool any = false;
+
+            for (int i = 0; i < 16; i++) {
+                n += snprintf(line + n, sizeof(line) - n, " %6d",
+                              a->slot_peak[ln][i]);
+                any |= a->slot_peak[ln][i] != 0;
+            }
+            if (any) {
+                SP404_TRACE("audio", "line %d peaks:%s", ln, line);
+            }
+        }
+        memset(a->slot_peak, 0, sizeof(a->slot_peak));
+        a->peak_frames = 0;
+    }
     for (int i = 0; i < 8; i += 2) {
         loop_l += sext20(w[i]);
         loop_r += sext20(w[i + 1]);

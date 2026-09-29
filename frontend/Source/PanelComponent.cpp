@@ -130,10 +130,10 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
         add (banks[i], T::button, 4 + i * 15.5f, 78, 13, 6);
     add ("MARK", T::button, 81.5f, 78, 13, 6);
 
-    // The 16 pads, 1-4 at the top.
+    // The 16 pads as on the unit: 1-4 along the bottom, 13-16 at the top.
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c)
-            add (juce::String (r * 4 + c + 1), T::pad, 5 + c * 23.0f, 90 + r * 17.0f, 20, 15);
+            add (juce::String ((3 - r) * 4 + c + 1), T::pad, 5 + c * 23.0f, 90 + r * 17.0f, 20, 15);
 
     addAndMakeVisible (oled);
     loadBindings();
@@ -150,15 +150,25 @@ void PanelComponent::loadBindings()
     auto v = juce::JSON::parse (bindingsFile());
     for (auto& c : controls)
         if (v.hasProperty (juce::Identifier (c.name)))
-            c.binding = Binding::fromVar (v[juce::Identifier (c.name)]);
+        {
+            const auto& cv = v[juce::Identifier (c.name)];
+            c.binding = Binding::fromVar (cv);
+            if (cv.hasProperty ("led"))
+                c.led = cv["led"];
+        }
 }
 
 void PanelComponent::saveBindings() const
 {
     auto* o = new juce::DynamicObject();
     for (auto& c : controls)
-        if (c.binding.kind != Binding::Kind::none)
-            o->setProperty (c.name, c.binding.toVar());
+        if (c.binding.kind != Binding::Kind::none || c.led >= 0)
+        {
+            auto v = c.binding.toVar();
+            if (c.led >= 0)
+                v.getDynamicObject()->setProperty ("led", c.led);
+            o->setProperty (c.name, v);
+        }
     bindingsFile().replaceWithText (juce::JSON::toString (juce::var (o)));
 }
 
@@ -174,8 +184,11 @@ void PanelComponent::learn (const Binding& b)
 
 void PanelComponent::setLedState (int index, int value)
 {
-    leds[index] = value;
-    repaint();
+    if (index >= 0 && index < (int) leds.size() && leds[(size_t) index] != value)
+    {
+        leds[(size_t) index] = (uint8_t) value;
+        repaint();
+    }
 }
 
 juce::Rectangle<float> PanelComponent::toScreen (juce::Rectangle<float> r) const
@@ -223,6 +236,13 @@ void PanelComponent::paint (juce::Graphics& g)
             {
                 g.setColour (c.pressed ? juce::Colour (0xff5b5e66) : juce::Colour (0xff34363c));
                 g.fillRoundedRectangle (r, 3.0f);
+                if (c.led >= 0 && leds[(size_t) c.led] != 0)
+                {
+                    // A lit button: its LED glows through the key.
+                    const float a = leds[(size_t) c.led] / 255.0f;
+                    g.setColour (accent().withAlpha (0.25f + 0.6f * a));
+                    g.fillRoundedRectangle (r, 3.0f);
+                }
                 g.setColour (ink());
                 g.setFont (juce::FontOptions (r.getHeight() * 0.42f));
                 g.drawText (c.name, r, juce::Justification::centred);
@@ -230,8 +250,19 @@ void PanelComponent::paint (juce::Graphics& g)
             }
             case PanelControl::Type::pad:
             {
-                g.setColour (c.pressed ? accent() : juce::Colour (0xff3b3d44));
+                g.setColour (c.pressed ? juce::Colour (0xff5b5e66) : juce::Colour (0xff3b3d44));
                 g.fillRoundedRectangle (r, 5.0f);
+                const int base = (c.name.getIntValue() - 1) * 3;
+                if (base >= 0 && base + 2 < 0x30)
+                {
+                    const auto rgb = juce::Colour (leds[(size_t) base], leds[(size_t) base + 1], leds[(size_t) base + 2]);
+                    if (rgb.getBrightness() > 0.0f)
+                    {
+                        // The pad's LEDs light it from inside.
+                        g.setColour (rgb.withMultipliedBrightness (1.6f).withAlpha (0.85f));
+                        g.fillRoundedRectangle (r.reduced (2.0f), 5.0f);
+                    }
+                }
                 g.setColour (juce::Colour (0xff55585f));
                 g.drawRoundedRectangle (r.reduced (1.0f), 5.0f, 1.5f);
                 g.setColour (ink().withAlpha (0.6f));
@@ -257,7 +288,7 @@ PanelControl* PanelComponent::hit (juce::Point<float> p)
     return nullptr;
 }
 
-void PanelComponent::press (PanelControl& c, bool down)
+void PanelComponent::press (PanelControl& c, bool down, float velocity)
 {
     c.pressed = down;
     const auto& b = c.binding;
@@ -265,12 +296,22 @@ void PanelComponent::press (PanelControl& c, bool down)
         link.sendKey (b.row, b.col, down);
     else if (b.kind == Binding::Kind::bmc)
         link.sendBmc (down ? b.down : b.up);
+    else if (b.kind == Binding::Kind::analog)
+    {
+        // Pads are pressure sensors read inverted: released reads full
+        // scale, a hard hit near zero. The firmware gets the velocity from
+        // the pressure at the first scan after the hit.
+        const int pressure = down ? juce::jlimit (200, 3900, (int) (velocity * 3900.0f)) : 0;
+        link.sendKnob (b.adc, b.channel, b.mux, 4095 - pressure);
+    }
     repaint();
 }
 
 void PanelComponent::setKnob (PanelControl& c, float v)
 {
     c.value = juce::jlimit (0.0f, 1.0f, v);
+    if (c.name == "VOLUME")
+        link.outputGain = c.value * c.value * 32.0f;    // up to +30 dB
     if (c.binding.kind == Binding::Kind::analog)
     {
         // The firmware reads knobs inverted (0xfff - value).
@@ -292,20 +333,57 @@ void PanelComponent::mouseDown (const juce::MouseEvent& e)
         return;
     }
     active = c;
+    if (c->name == "VALUE")
+    {
+        // An endless encoder: dragging turns it, a click pushes it.
+        encoderSent = 0;
+        encoderMoved = false;
+        return;
+    }
     if (c->type == PanelControl::Type::knob)
         dragStartValue = c->value;
     else
-        press (*c, true);
+    {
+        // Pads: clicking nearer the top hits harder.
+        auto r = toScreen (c->bounds);
+        const float v = 1.0f - (e.position.y - r.getY()) / juce::jmax (1.0f, r.getHeight());
+        press (*c, true, 0.35f + 0.65f * juce::jlimit (0.0f, 1.0f, v));
+    }
 }
 
 void PanelComponent::mouseDrag (const juce::MouseEvent& e)
 {
+    if (active != nullptr && active->name == "VALUE")
+    {
+        const int detents = -e.getDistanceFromDragStartY() / 12;
+        if (detents != encoderSent)
+        {
+            link.sendEncoder (detents - encoderSent);
+            active->value = std::fmod (active->value + 0.04f * (detents - encoderSent) + 10.0f, 1.0f);
+            encoderSent = detents;
+            encoderMoved = true;
+            repaint();
+        }
+        return;
+    }
     if (active != nullptr && active->type == PanelControl::Type::knob)
         setKnob (*active, dragStartValue - e.getDistanceFromDragStartY() / 200.0f);
 }
 
 void PanelComponent::mouseUp (const juce::MouseEvent&)
 {
+    if (active != nullptr && active->name == "VALUE")
+    {
+        if (! encoderMoved && active->binding.kind == Binding::Kind::analog)
+        {
+            // The push switch is read like a pad: pressed, then released.
+            const auto& b = active->binding;
+            link.sendKnob (b.adc, b.channel, b.mux, 0);
+            juce::Timer::callAfterDelay (120, [this, b] { link.sendKnob (b.adc, b.channel, b.mux, 4095); });
+        }
+        active = nullptr;
+        return;
+    }
     if (active != nullptr && active->type != PanelControl::Type::knob)
         press (*active, false);
     active = nullptr;

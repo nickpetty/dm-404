@@ -316,6 +316,8 @@ struct IMXRTADC {
 typedef struct SP404Audio {
     FILE *wav;
     uint64_t wav_frames;
+    int32_t slot_peak[4][16];
+    int peak_frames;
     /* Stereo output, for the frontend link. */
     void (*out)(void *opaque, const int16_t *lr, int frames);
     void *out_opaque;
@@ -355,6 +357,7 @@ struct SP404Link {
     void (*key)(void *opaque, int row, int col, bool pressed);
     void (*knob)(void *opaque, int adc, int ch, int mux, uint16_t value);
     void (*bmc_rx)(void *opaque, const uint8_t *pkt);
+    void (*encoder)(void *opaque, int steps);
 };
 
 void sp404_link_init(SP404Link *l, Chardev *chr, SSD1309State *oled);

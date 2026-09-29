@@ -31,6 +31,11 @@ public:
     void sendKey (int row, int col, bool pressed);
     void sendKnob (int adc, int channel, int mux, int value);
     void sendBmc (const uint8_t packet[4]);
+    void sendEncoder (int detents);
+
+    // Gain applied to the emulator's audio: the unit's VOLUME knob is an
+    // analog pot after the DAC, which the firmware never sees.
+    std::atomic<float> outputGain { 8.0f };
 
     // The latest screen: 128x64, one bit per pixel, 16 bytes a row.
     using Screen = std::array<uint8_t, 1024>;

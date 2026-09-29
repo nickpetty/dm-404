@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/core/boards.h"
@@ -88,11 +89,14 @@ static const struct {
 static const int sp404_adc_irq[6] = { 67, 68, 118, 119, 120, 121 };
 
 /*
- * The analog inputs go through a multiplexer whose address is GPIO2
- * pins 23-25, stepped by the firmware between scans.
+ * The analog inputs go through a multiplexer addressed by GPIO2 pins 27
+ * (bit 0), 30 (bit 1) and 31 (bit 2), stepped by the ADC_ETC interrupt
+ * (FUN_800355a8). On ADC1: channel 4 and 5 are the 16 pads (pressure,
+ * released near full scale), channel 6 the knobs, channel 3 not yet known.
+ * The firmware reads every input inverted, as 0xfff - value.
  */
 #define SP404_MUX_GPIO          1       /* GPIO2 */
-#define SP404_MUX_SHIFT         23
+#define SP404_KEYROW_SHIFT      23      /* key matrix rows: GPIO2 23-25 */
 
 /* uSDHC1-2: base, IRQ. uSDHC1 is the SD card slot (A:), uSDHC2 the eMMC (B:). */
 static const struct {
@@ -126,6 +130,17 @@ static const struct {
  */
 #define SP404_KEY_GPIO          1       /* GPIO2 */
 #define SP404_KEY_COLUMNS       0x147c0000u
+/*
+ * The VALUE encoder: quadrature on GPIO2 18 (A) and 19 (B), active low,
+ * sampled by the ADC_ETC interrupt at 2 kHz (FUN_800355a8 hands changes to
+ * FUN_80038300). Turns are played out one transition per 2 ms so every
+ * one is seen; SP404_ENC_PER_DETENT transitions make a detent.
+ */
+#define SP404_ENC_A_BIT         18
+#define SP404_ENC_B_BIT         19
+#define SP404_ENC_PERIOD_NS     (2 * 1000 * 1000)
+#define SP404_ENC_PER_DETENT    4
+
 /* The GPIO2 bit of each column, in the order the firmware packs them. */
 static const int sp404_key_col_bit[7] = { 20, 21, 22, 28, 26, 18, 19 };
 
@@ -198,11 +213,74 @@ typedef struct SP404Machine {
     char *link_id;
     SP404Link link;
     uint8_t keys[8];            /* pressed columns, by matrix row */
+    QEMUTimer *enc_timer;
+    int enc_phase;              /* 0-3 along the Gray sequence */
+    int enc_pending;            /* transitions still to play, signed */
+    MemoryRegion dwt;
+    uint32_t dwt_ctrl, dwt_base;
+    int64_t dwt_base_ns;
     int flash_fd;
 } SP404Machine;
 
 #define TYPE_SP404_MACHINE MACHINE_TYPE_NAME("sp404mk2")
 OBJECT_DECLARE_SIMPLE_TYPE(SP404Machine, SP404_MACHINE)
+
+/*
+ * DWT: only CTRL and CYCCNT, which the firmware's tempo clock reads
+ * (FUN_80004f70, FUN_80009de0). CYCCNT counts 600 MHz cycles of virtual
+ * time while CTRL.CYCCNTENA is set. The application reads it without ever
+ * enabling it, so something before it (the boot loader) must: it starts
+ * enabled here. QEMU otherwise has no DWT.
+ */
+static uint32_t sp404_dwt_cycles(SP404Machine *m)
+{
+    int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - m->dwt_base_ns;
+
+    return m->dwt_base + (uint32_t)muldiv64(ns, SP404_CPU_HZ,
+                                            NANOSECONDS_PER_SECOND);
+}
+
+static uint64_t sp404_dwt_read(void *opaque, hwaddr offset, unsigned size)
+{
+    SP404Machine *m = opaque;
+
+    switch (offset) {
+    case 0x0:
+        return m->dwt_ctrl | (4u << 28);        /* NUMCOMP */
+    case 0x4:
+        return (m->dwt_ctrl & 1) ? sp404_dwt_cycles(m) : m->dwt_base;
+    }
+    return 0;
+}
+
+static void sp404_dwt_write(void *opaque, hwaddr offset, uint64_t val,
+                            unsigned size)
+{
+    SP404Machine *m = opaque;
+
+    switch (offset) {
+    case 0x0:
+        if ((val ^ m->dwt_ctrl) & 1) {
+            /* Freeze or restart the count where it stands. */
+            m->dwt_base = (m->dwt_ctrl & 1) ? sp404_dwt_cycles(m) : m->dwt_base;
+            m->dwt_base_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        }
+        m->dwt_ctrl = val & 1;
+        break;
+    case 0x4:
+        m->dwt_base = val;
+        m->dwt_base_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        break;
+    }
+}
+
+static const MemoryRegionOps sp404_dwt_ops = {
+    .read = sp404_dwt_read,
+    .write = sp404_dwt_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+};
 
 static void sp404_ram(MemoryRegion *mr, const char *name, hwaddr base,
                       uint64_t size)
@@ -284,14 +362,20 @@ static uint32_t sp404_key_inputs(void *opaque, uint32_t in)
 {
     SP404Machine *m = opaque;
     IMXRTGPIO *g = &m->gpio[SP404_KEY_GPIO];
-    unsigned row = ((g->dr & g->gdir) >> SP404_MUX_SHIFT) & 7;
+    unsigned row = ((g->dr & g->gdir) >> SP404_KEYROW_SHIFT) & 7;
+
+    static const uint8_t gray[4] = { 0, 1, 3, 2 };
+    unsigned ab = gray[m->enc_phase & 3];
 
     in |= SP404_KEY_COLUMNS;
-    for (int c = 0; c < 7; c++) {
+    for (int c = 0; c < 5; c++) {
         if (m->keys[row] & (1u << c)) {
             in &= ~(1u << sp404_key_col_bit[c]);
         }
     }
+    /* Encoder contacts close to ground. */
+    in = deposit32(in, SP404_ENC_A_BIT, 1, !(ab & 1));
+    in = deposit32(in, SP404_ENC_B_BIT, 1, !(ab & 2));
     return in;
 }
 
@@ -314,6 +398,33 @@ static void sp404_link_knob(void *opaque, int adc, int ch, int mux,
     }
 }
 
+static void sp404_encoder_tick(void *opaque)
+{
+    SP404Machine *m = opaque;
+
+    if (m->enc_pending) {
+        int dir = m->enc_pending > 0 ? 1 : -1;
+
+        m->enc_phase = (m->enc_phase + dir) & 3;
+        m->enc_pending -= dir;
+    }
+    if (m->enc_pending) {
+        timer_mod(m->enc_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  SP404_ENC_PERIOD_NS);
+    }
+}
+
+static void sp404_link_encoder(void *opaque, int steps)
+{
+    SP404Machine *m = opaque;
+
+    m->enc_pending += steps * SP404_ENC_PER_DETENT;
+    if (!timer_pending(m->enc_timer)) {
+        timer_mod(m->enc_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  SP404_ENC_PERIOD_NS);
+    }
+}
+
 static void sp404_link_bmc(void *opaque, const uint8_t *pkt)
 {
     SP404Machine *m = opaque;
@@ -325,7 +436,9 @@ static uint16_t sp404_analog_sample(void *opaque, int adc, int ch)
 {
     SP404Machine *m = opaque;
     IMXRTGPIO *g = &m->gpio[SP404_MUX_GPIO];
-    unsigned mux = ((g->dr & g->gdir) >> SP404_MUX_SHIFT) & 7;
+    uint32_t out = g->dr & g->gdir;
+    unsigned mux = extract32(out, 27, 1) | extract32(out, 30, 1) << 1 |
+                   extract32(out, 31, 1) << 2;
 
     return m->analog[adc][ch & 15][mux];
 }
@@ -378,6 +491,12 @@ static void sp404_init(MachineState *machine)
     object_property_set_link(OBJECT(dev), "memory", OBJECT(sysmem),
                              &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    m->dwt_ctrl = 1;
+    memory_region_init_io(&m->dwt, OBJECT(machine), &sp404_dwt_ops, m,
+                          "sp404.dwt", 0x1000);
+    memory_region_add_subregion_overlap(&m->armv7m.container, 0xe0001000,
+                                        &m->dwt, 1);
 
     object_initialize_child(OBJECT(machine), "flexspi", &m->flexspi,
                             TYPE_IMXRT_FLEXSPI);
@@ -538,7 +657,7 @@ static void sp404_init(MachineState *machine)
     for (int a = 0; a < 2; a++) {
         for (int c = 0; c < 16; c++) {
             for (int x = 0; x < 8; x++) {
-                m->analog[a][c][x] = 2048;
+                m->analog[a][c][x] = 4095;      /* pads up, knobs at 0 */
             }
         }
     }
@@ -562,6 +681,7 @@ static void sp404_init(MachineState *machine)
             qdev_get_gpio_in_named(DEVICE(&m->adc), "trig", i));
     }
 
+    m->enc_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sp404_encoder_tick, m);
     m->gpio[SP404_KEY_GPIO].in_hook = sp404_key_inputs;
     m->gpio[SP404_KEY_GPIO].in_hook_opaque = m;
 
@@ -576,6 +696,7 @@ static void sp404_init(MachineState *machine)
         m->link.key = sp404_link_key;
         m->link.knob = sp404_link_knob;
         m->link.bmc_rx = sp404_link_bmc;
+        m->link.encoder = sp404_link_encoder;
         sp404_link_init(&m->link, chr, SSD1309(m->oled));
         m->bmc.link = &m->link;
         m->audio.out = sp404_link_audio;

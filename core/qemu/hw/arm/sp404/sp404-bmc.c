@@ -10,7 +10,8 @@
  *
  * What the application does with system messages from the BMC (CIN 0, the
  * handler at 0x800665a8):
- *   00 FF 00 01        BMC up (sets a flag, posts internal event 3)
+ *   00 FF 00 01        go to page 3, the blank power-off page
+ *                      (FUN_800da598(3)); never sent at boot
  *   00 FF 00 10..13    USB state
  *   00 FF 04 nn        answer to "01 FF 05 01": records nn and signals the
  *                      semaphore main() waits on before bringing up the UI
@@ -58,7 +59,11 @@ static void bmc_packet(SP404BMC *bmc, const uint8_t *p)
         switch (p[2]) {
         case 0x00:
             if (p[3] == 0x01) {         /* the application's hello */
-                bmc_send(bmc, 0x00, 0xff, 0x00, 0x01);
+                /*
+                 * Not answered with "00 FF 00 01": the firmware takes that
+                 * as a request for page 3, a blank power-off screen
+                 * (FUN_800da598(3) in the CIN 0 handler).
+                 */
                 /*
                  * "00 FF FF nn" is the SHIFT key (panel key 0x2A): 01 held,
                  * anything else released. Held at power-on means the

@@ -175,14 +175,15 @@ void EmulatorLink::handleMessage (uint8_t type, const uint8_t* data, int len)
 
 int EmulatorLink::readAudio (float* left, float* right, int frames)
 {
+    const float gain = outputGain.load() / 32768.0f;
     int start1, size1, start2, size2;
     audioFifo.prepareToRead (frames, start1, size1, start2, size2);
     auto copy = [&] (int start, int size, int to)
     {
         for (int i = 0; i < size; ++i)
         {
-            left[to + i] = audioBuf[(size_t) (start + i) * 2] / 32768.0f;
-            right[to + i] = audioBuf[(size_t) (start + i) * 2 + 1] / 32768.0f;
+            left[to + i] = juce::jlimit (-1.0f, 1.0f, audioBuf[(size_t) (start + i) * 2] * gain);
+            right[to + i] = juce::jlimit (-1.0f, 1.0f, audioBuf[(size_t) (start + i) * 2 + 1] * gain);
         }
     };
     copy (start1, size1, 0);
@@ -223,4 +224,15 @@ void EmulatorLink::sendKnob (int adc, int channel, int mux, int value)
 void EmulatorLink::sendBmc (const uint8_t packet[4])
 {
     send (0x83, packet, 4);
+}
+
+void EmulatorLink::sendEncoder (int detents)
+{
+    while (detents != 0)
+    {
+        const int n = juce::jlimit (-127, 127, detents);
+        const auto b = (uint8_t) (int8_t) n;
+        send (0x84, &b, 1);
+        detents -= n;
+    }
 }

@@ -4,10 +4,13 @@
 
 ACTION is one of
     wait:S              let S seconds pass
+    mark:NAME           print the audio position (for finding events in a wav)
+    wav:NAME            save all audio so far as build/logs/NAME.wav
     key:R,C             tap matrix key row R, column C (press, 150 ms, release)
     hold:R,C / up:R,C   press / release
     knob:ADC,CH,MUX,V   set an analog input
     bmc:AABBCCDD        inject a 4-byte packet from the BMC
+    enc:N               turn the VALUE encoder N detents (negative: back)
     shot:NAME           save the screen as build/logs/NAME.png
     sweep               tap every matrix key in turn, saving a shot after each
 
@@ -17,7 +20,7 @@ summary of what arrived: display frames, audio frames, BMC packets.
 import os, socket, struct, subprocess, sys, threading, time, zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PORT = 5404
+PORT = int(os.environ.get('LINK_PORT', '5404'))
 
 
 class Link:
@@ -28,6 +31,7 @@ class Link:
         self.audio = 0
         self.peak = 0
         self.bmc = []
+        self.pcm = bytearray()          # all audio, 48 kHz stereo s16le
         self.lock = threading.Lock()
         threading.Thread(target=self.reader, daemon=True).start()
 
@@ -53,6 +57,7 @@ class Link:
                         self.frames += 1
                     elif t == 2:
                         self.audio += n // 4
+                        self.pcm += p
                         for i in range(0, n, 2):
                             v = abs(struct.unpack_from('<h', p, i)[0])
                             self.peak = max(self.peak, v)
@@ -94,11 +99,11 @@ def main():
     if args[:1] == ['-t']:
         boot = float(args[1])
         args = args[2:]
-    exe = os.path.join(ROOT, 'build', 'qemu', 'qemu-system-arm.exe')
+    exe = os.environ.get('LINK_QEMU_EXE') or os.path.join(ROOT, 'build', 'qemu', 'qemu-system-arm.exe')
     q = subprocess.Popen([exe, '-M', 'sp404mk2,flash=%s,link=link' % os.path.join(ROOT, 'build', 'flash.bin'),
                           '-bios', os.path.join(ROOT, 'firmware', 'SP404MKII_APP1.bin'),
                           '-chardev', 'socket,id=link,host=127.0.0.1,port=%d,server=on,wait=on' % PORT,
-                          '-drive', 'if=sd,index=1,format=raw,file=' + os.path.join(ROOT, 'build', 'emmc.img'),
+                          '-drive', 'if=sd,index=1,format=raw,snapshot=on,file=' + os.path.join(ROOT, 'build', 'emmc.img'),
                           '-nographic', '-monitor', 'none', '-serial', 'none']
                          + os.environ.get('LINK_QEMU_ARGS', '').split(),
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -126,10 +131,20 @@ def main():
             elif kind == 'knob':
                 adc, ch, mux, val = map(int, v.split(','))
                 link.send(0x82, struct.pack('<BBBH', adc, ch, mux, val))
+            elif kind == 'enc':
+                link.send(0x84, struct.pack('<b', int(v)))
             elif kind == 'bmc':
                 link.send(0x83, bytes.fromhex(v))
             elif kind == 'shot':
                 link.shot(v)
+            elif kind == 'mark':
+                with link.lock:
+                    print('mark %s at %.3f s' % (v, len(link.pcm) / 4 / 48000))
+            elif kind == 'wav':
+                with link.lock:
+                    pcm = bytes(link.pcm)
+                hdr = b'RIFF' + struct.pack('<I', 36 + len(pcm)) + b'WAVEfmt ' +                     struct.pack('<IHHIIHH', 16, 1, 2, 48000, 48000 * 4, 4, 16) + b'data' + struct.pack('<I', len(pcm))
+                open(os.path.join(ROOT, 'build', 'logs', v + '.wav'), 'wb').write(hdr + pcm)
             elif kind == 'sweep':
                 for r in range(8):
                     for c in range(7):

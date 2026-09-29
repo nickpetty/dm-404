@@ -15,7 +15,8 @@
  * Frontend to emulator:
  *   0x81 KEY      row (u8, 0-7), column (u8, 0-6), pressed (u8)
  *   0x82 KNOB     adc (u8), channel (u8), mux (u8), value (u16 LE, 0-4095)
- *   0x83 BMC      a 4-byte packet, as if from the BMC (pads, SHIFT)
+ *   0x83 BMC      a 4-byte packet, as if from the BMC (SHIFT)
+ *   0x84 ENCODER  detents to turn the VALUE encoder (s8, + clockwise)
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -101,6 +102,11 @@ static void link_message(SP404Link *l, uint8_t type, const uint8_t *p,
     case 0x83:
         if (len >= 4 && l->bmc_rx) {
             l->bmc_rx(l->opaque, p);
+        }
+        break;
+    case 0x84:
+        if (len >= 1 && l->encoder) {
+            l->encoder(l->opaque, (int8_t)p[0]);
         }
         break;
     default:

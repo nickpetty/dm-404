@@ -33,35 +33,43 @@ unpacks code to ITCM (0x400), DTCM, OCRAM and SDRAM 0x80000000
 | LPUART3 | 0x4018C000 | BMC link, 1 Mbaud, USB-MIDI-framed 4-byte packets |
 | SAI1 | 0x40384000 | codec: TDM 16x32-bit slots, 4 TX lines, eDMA ch0-3 chained, RX ch4 |
 | uSDHC1 / uSDHC2 | 0x402C0000 / 0x402C4000 | SD card (A:) / eMMC (B:, exFAT) |
-| PIT ch0 → XBAR 56→103 → ADC_ETC trig0 → ADC1 ch 4,5,6,3 | | knob scan, 2 kHz, through a mux addressed by GPIO2.23-25 |
-| GPIO2 18-22,26,28 | | button matrix columns, active low; rows are GPIO2.23-25 |
+| PIT ch0 → XBAR 56→103 → ADC_ETC trig0 → ADC1 ch 4,5,6,3 | | analog scan, 2 kHz, through a mux addressed by GPIO2.27 (bit0), .30, .31 |
+| ADC1 ch4/ch5 mux 0-7 | | the 16 pads (pressure; idle reads 4095; map in frontend/panel.json) |
+| ADC1 ch6 mux 1/2/3, mux 4 | | CTRL 1/2/3; VALUE push (key 0x13) |
+| GPIO2.23-25 rows × GPIO2.20,21,22,28,26 cols | | key matrix, active low; IDs from table 0x82e48774 (FUN_8005da10) |
+| GPIO2.18/19 | | VALUE encoder quadrature, active low, 4 transitions per detent |
+| DWT_CYCCNT | 0xE0001004 | modelled in the machine (tempo clock reads it) |
+
+VOLUME is an analog pot after the DAC: the firmware never reads it, the
+frontend applies it as output gain. Audio: pads play into TX line 3 slots
+2/3 at modest digital level.
 
 BMC protocol (sp404-bmc.c has the details): byte 0 is cable<<4|CIN and the
 app dispatches on CIN (table 0x800ebc00); CIN 0/1 are system messages
 "xx FF cmd arg", the rest MIDI. Known: 01 FF 05 01 → 00 FF 04 01 (main waits
-on it), hello 01 FF 00 01 → 00 FF 00 01, 01 FE 11 00 → 00 FF FE '0',
-00 FF FF nn = SHIFT (panel key 0x2A) held/released. 01 00 nn 00 (83 of them)
-look like LED/pad settings.
+on it); 01 FE 11 00 → 00 FF FE '0'; the hello 01 FF 00 01 gets NO answer
+(00 FF 00 01 means "go to page 3", a blank power-off page); 00 FF FF nn =
+SHIFT (key 0x2A) held/released. LEDs go out as 01 00 idx value: idx 0-0x2f
+pad RGB triplets (pad n at 3(n-1)), 0x30-0x52 button LEDs.
 
 Firmware facts worth knowing: 94 UI pages, handler table 0x8023b4fc; the
-startup/main page is page 68 (handler 0x80051b90, object 0x1aa8 bytes);
+current page ID is at 0x80245880 (page
+registry 0x801f8f68, 16-byte records by ID; FUN_800da598(n) requests one);
+the startup/main page object is page 68 (handler 0x80051b90, object 0x1aa8 bytes);
 DrawString is FUN_800ee530; file open is FUN_800b5d88(handle, path, mode);
 the kernel's current-task pointer is 0x202bbbfc and TCBs are 0x90 apart
 with names at +0x88 (`tools/tasks.py`).
 
 ## Status
 
-Boots to the "SP-404" splash, brings up every task, loads project 01 from
-the eMMC (`B:/ROLAND/SP-404MKII/PROJECT_01/...`: SMPL/BANKx-yy.SMP,
-PADCONF.BIN, PTN/PTNnnnnn.BIN, PICTURE/startup_*.bmp), runs audio DMA at
-48 kHz and the knob scan, then shows a blank screen: the page loop runs and
-draws, but DrawString is never called. With the user's real projects on
-the eMMC (FAT32 via `tools/mkdisk.py`) it loads all samples and patterns,
-the current page ID (0x80245880) is 3, key presses reach the firmware
-(FUN_8005da10), and the panel/debug frontend runs, but the screen stays
-blank: pages 3/68 draw nothing themselves and DrawString is never called.
-Also: the firmware reads DWT_CYCCNT (0xE0001004) for tempo timing, which
-QEMU does not implement.
+Boots to the main screen with the user's projects on the eMMC, pads play
+(and light), CTRL knobs and effect buttons work, VALUE turns. The JUCE
+frontend runs it all; bindings for the remaining panel buttons and their
+LEDs are being filled in from key-map runs (tools/keymap.sh).
+
+Test runs (tools/link.py) open the eMMC with snapshot=on: the firmware
+keeps state there, and runs must not leak into each other or share a
+writable image.
 
 ## Working here
 

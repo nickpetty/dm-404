@@ -27,6 +27,7 @@ struct PanelControl
     Type type;
     juce::Rectangle<float> bounds;      // in panel units (0-100 x 0-160)
     Binding binding;
+    int led = -1;                       // button LED index ("01 00 idx v")
     bool pressed = false;
     float value = 0.5f;                 // knobs, 0-1
 };
@@ -67,7 +68,7 @@ public:
 private:
     juce::Rectangle<float> toScreen (juce::Rectangle<float>) const;
     PanelControl* hit (juce::Point<float>);
-    void press (PanelControl&, bool down);
+    void press (PanelControl&, bool down, float velocity = 1.0f);
     void setKnob (PanelControl&, float v);
 
     EmulatorLink& link;
@@ -76,5 +77,9 @@ private:
     PanelControl* active = nullptr;
     PanelControl* learning = nullptr;
     float dragStartValue = 0;
-    std::map<int, int> leds;
+    int encoderSent = 0;
+    bool encoderMoved = false;
+    // LED levels as the firmware sends them to the BMC, "01 00 idx value":
+    // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.
+    std::array<uint8_t, 128> leds {};
 };
