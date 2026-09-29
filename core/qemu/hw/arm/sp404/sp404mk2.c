@@ -35,6 +35,7 @@
 #include "hw/sd/sd.h"
 #include "system/blockdev.h"
 #include "system/block-backend.h"
+#include "chardev/char.h"
 #include "hw/arm/sp404/sp404.h"
 
 /* The APP1 image's vector table: initial SP and reset handler. */
@@ -125,6 +126,8 @@ static const struct {
  */
 #define SP404_KEY_GPIO          1       /* GPIO2 */
 #define SP404_KEY_COLUMNS       0x147c0000u
+/* The GPIO2 bit of each column, in the order the firmware packs them. */
+static const int sp404_key_col_bit[7] = { 20, 21, 22, 28, 26, 18, 19 };
 
 /*
  * Pad levels at power-on, per bank. GPIO1 pin 0 is waited on high early in
@@ -192,6 +195,9 @@ typedef struct SP404Machine {
     MemoryRegion itcm, dtcm, ocram, bootrom, flash, sdram;
     Clock *sysclk, *refclk;
     char *flash_file;
+    char *link_id;
+    SP404Link link;
+    uint8_t keys[8];            /* pressed columns, by matrix row */
     int flash_fd;
 } SP404Machine;
 
@@ -271,6 +277,48 @@ static void sp404_load_flash(SP404Machine *m, uint32_t vectors[2])
     memcpy(vectors, flash + SP404_APP1_FLASH_OFFSET + APP1_VECTORS_OFFSET, 8);
     vectors[0] = le32_to_cpu(vectors[0]);
     vectors[1] = le32_to_cpu(vectors[1]);
+}
+
+/* The key matrix: the row being scanned is the mux address on GPIO2. */
+static uint32_t sp404_key_inputs(void *opaque, uint32_t in)
+{
+    SP404Machine *m = opaque;
+    IMXRTGPIO *g = &m->gpio[SP404_KEY_GPIO];
+    unsigned row = ((g->dr & g->gdir) >> SP404_MUX_SHIFT) & 7;
+
+    in |= SP404_KEY_COLUMNS;
+    for (int c = 0; c < 7; c++) {
+        if (m->keys[row] & (1u << c)) {
+            in &= ~(1u << sp404_key_col_bit[c]);
+        }
+    }
+    return in;
+}
+
+static void sp404_link_key(void *opaque, int row, int col, bool pressed)
+{
+    SP404Machine *m = opaque;
+
+    if (row >= 0 && row < 8 && col >= 0 && col < 7) {
+        m->keys[row] = deposit32(m->keys[row], col, 1, pressed);
+    }
+}
+
+static void sp404_link_knob(void *opaque, int adc, int ch, int mux,
+                            uint16_t value)
+{
+    SP404Machine *m = opaque;
+
+    if (adc >= 0 && adc < 2 && ch >= 0 && ch < 16 && mux >= 0 && mux < 8) {
+        m->analog[adc][ch][mux] = value & 0xfff;
+    }
+}
+
+static void sp404_link_bmc(void *opaque, const uint8_t *pkt)
+{
+    SP404Machine *m = opaque;
+
+    sp404_bmc_inject(&m->bmc, pkt);
 }
 
 static uint16_t sp404_analog_sample(void *opaque, int adc, int ch)
@@ -514,6 +562,26 @@ static void sp404_init(MachineState *machine)
             qdev_get_gpio_in_named(DEVICE(&m->adc), "trig", i));
     }
 
+    m->gpio[SP404_KEY_GPIO].in_hook = sp404_key_inputs;
+    m->gpio[SP404_KEY_GPIO].in_hook_opaque = m;
+
+    if (m->link_id) {
+        Chardev *chr = qemu_chr_find(m->link_id);
+
+        if (!chr) {
+            error_report("sp404mk2: no chardev '%s' for link", m->link_id);
+            exit(1);
+        }
+        m->link.opaque = m;
+        m->link.key = sp404_link_key;
+        m->link.knob = sp404_link_knob;
+        m->link.bmc_rx = sp404_link_bmc;
+        sp404_link_init(&m->link, chr, SSD1309(m->oled));
+        m->bmc.link = &m->link;
+        m->audio.out = sp404_link_audio;
+        m->audio.out_opaque = &m->link;
+    }
+
     sp404_load_flash(m, vectors);
     if (vectors[1] - app1 >= SP404_FLEXSPI_SIZE - SP404_APP1_FLASH_OFFSET ||
         !(vectors[1] & 1)) {
@@ -547,6 +615,19 @@ static void sp404_set_flash(Object *obj, const char *value, Error **errp)
     m->flash_file = g_strdup(value);
 }
 
+static char *sp404_get_link(Object *obj, Error **errp)
+{
+    return g_strdup(SP404_MACHINE(obj)->link_id);
+}
+
+static void sp404_set_link(Object *obj, const char *value, Error **errp)
+{
+    SP404Machine *m = SP404_MACHINE(obj);
+
+    g_free(m->link_id);
+    m->link_id = g_strdup(value);
+}
+
 static void sp404_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -564,6 +645,9 @@ static void sp404_machine_class_init(ObjectClass *oc, const void *data)
                                   sp404_set_flash);
     object_class_property_set_description(oc, "flash",
         "File backing the 4 MB QSPI NOR (created if missing)");
+    object_class_property_add_str(oc, "link", sp404_get_link, sp404_set_link);
+    object_class_property_set_description(oc, "link",
+        "Chardev id of the frontend link (panel, screen, audio)");
 }
 
 static const TypeInfo sp404_machine_info = {

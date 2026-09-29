@@ -33,10 +33,18 @@ static void bmc_send(SP404BMC *bmc, uint8_t b0, uint8_t b1, uint8_t b2,
     imxrt_lpuart_receive(bmc->uart, p, sizeof(p));
 }
 
+void sp404_bmc_inject(SP404BMC *bmc, const uint8_t *pkt)
+{
+    bmc_send(bmc, pkt[0], pkt[1], pkt[2], pkt[3]);
+}
+
 static void bmc_packet(SP404BMC *bmc, const uint8_t *p)
 {
     SP404_TRACE("bmc", "from i.MX: %02x %02x %02x %02x", p[0], p[1], p[2],
                 p[3]);
+    if (bmc->link) {
+        sp404_link_bmc_tx(bmc->link, p);
+    }
     if ((p[0] & 0xf) == 1 && p[1] == 0xfe && p[2] == 0x11) {
         /*
          * Asked at the end of project load (FUN_8013dbe8), which polls for

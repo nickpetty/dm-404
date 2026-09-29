@@ -29,6 +29,9 @@ enum {
 
 static uint32_t gpio_pad_levels(IMXRTGPIO *s)
 {
+    if (s->in_hook) {
+        s->in = s->in_hook(s->in_hook_opaque, s->in);
+    }
     /* Output pins read back what is driven; inputs what the pad sees. */
     return (s->dr & s->gdir) | (s->in & ~s->gdir);
 }

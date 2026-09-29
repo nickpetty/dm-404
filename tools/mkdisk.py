@@ -1,7 +1,7 @@
 """Make a FAT32 disk image for the emulated eMMC (B:) or SD card (A:).
 
     python tools/mkdisk.py OUT.img SIZE_MB [--label LABEL] [--dirs D1,D2,...]
-        [--add HOSTPATH=IMAGEPATH ...]
+        [--add HOSTPATH=IMAGEPATH ...] [--tree HOSTDIR=IMAGEDIR ...]
 
 The real internal drive is exFAT ("SP404mkII Internal Drive"); the
 firmware's FatFs mounts FAT32 as well, which is all this makes. The volume
@@ -21,6 +21,7 @@ def main():
     ap.add_argument('--label', default='SP-404MKII')
     ap.add_argument('--dirs', default='')
     ap.add_argument('--add', action='append', default=[])
+    ap.add_argument('--tree', action='append', default=[])
     a = ap.parse_args()
 
     with open(a.out, 'wb') as f:
@@ -38,6 +39,15 @@ def main():
         vol.makedirs(fs.path.dirname(img) or '/', recreate=True)
         with open(host, 'rb') as src:
             vol.writebytes(img, src.read())
+    for spec in a.tree:
+        host, img = spec.split('=', 1)
+        for dirpath, _, files in os.walk(host):
+            rel = os.path.relpath(dirpath, host).replace(os.sep, '/')
+            dest = img if rel == '.' else img.rstrip('/') + '/' + rel
+            vol.makedirs(dest, recreate=True)
+            for name in files:
+                with open(os.path.join(dirpath, name), 'rb') as src:
+                    vol.writebytes(dest + '/' + name, src.read())
     for path in vol.walk.dirs('/'):
         print(path)
     vol.close()

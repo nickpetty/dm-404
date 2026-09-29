@@ -122,6 +122,9 @@ struct IMXRTGPIO {
     MemoryRegion iomem;
     qemu_irq irq[10];           /* 0-15, 16-31, then pins 0-7 singly */
     qemu_irq out[32];
+    /* Computes the input levels when the pads are read (key matrices). */
+    uint32_t (*in_hook)(void *opaque, uint32_t in);
+    void *in_hook_opaque;
     char *name;
     uint32_t reset_in;
     uint32_t dr, gdir, icr1, icr2, imr, isr, edge_sel;
@@ -324,12 +327,38 @@ void sp404_audio_init(SP404Audio *a, IMXRTSAI *sai);
  * The BMC: the companion microcontroller on LPUART3, modelled at the level
  * of the packets it exchanges with the i.MX.
  */
+typedef struct SP404Link SP404Link;
+
 typedef struct SP404BMC {
     IMXRTLPUART *uart;
+    SP404Link *link;            /* copies of what the firmware sends */
     uint8_t pkt[4];
     unsigned pkt_len;
 } SP404BMC;
 
 void sp404_bmc_init(SP404BMC *bmc, IMXRTLPUART *uart);
+/* A packet from the BMC to the firmware (pads, SHIFT, ...). */
+void sp404_bmc_inject(SP404BMC *bmc, const uint8_t *pkt);
+
+/* The frontend link (sp404-link.c has the protocol). */
+struct SP404Link {
+    CharFrontend chr;
+    bool connected, resend;
+    SSD1309State *oled;
+    QEMUTimer *timer;
+    uint8_t last_img[SSD1309_WIDTH * SSD1309_HEIGHT / 8];
+    uint8_t audio[64 * 4];
+    int audio_len;
+    uint8_t rx[4 + 256];
+    int rx_len;
+    void *opaque;
+    void (*key)(void *opaque, int row, int col, bool pressed);
+    void (*knob)(void *opaque, int adc, int ch, int mux, uint16_t value);
+    void (*bmc_rx)(void *opaque, const uint8_t *pkt);
+};
+
+void sp404_link_init(SP404Link *l, Chardev *chr, SSD1309State *oled);
+void sp404_link_audio(void *opaque, const int16_t *lr, int frames);
+void sp404_link_bmc_tx(SP404Link *l, const uint8_t *pkt);
 
 #endif

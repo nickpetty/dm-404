@@ -55,8 +55,13 @@ Boots to the "SP-404" splash, brings up every task, loads project 01 from
 the eMMC (`B:/ROLAND/SP-404MKII/PROJECT_01/...`: SMPL/BANKx-yy.SMP,
 PADCONF.BIN, PTN/PTNnnnnn.BIN, PICTURE/startup_*.bmp), runs audio DMA at
 48 kHz and the knob scan, then shows a blank screen: the page loop runs and
-draws, but DrawString is never called. The eMMC image is a blank FAT32 made
-by `tools/mkdisk.py`; real project data is the leading suspect.
+draws, but DrawString is never called. With the user's real projects on
+the eMMC (FAT32 via `tools/mkdisk.py`) it loads all samples and patterns,
+the current page ID (0x80245880) is 3, key presses reach the firmware
+(FUN_8005da10), and the panel/debug frontend runs, but the screen stays
+blank: pages 3/68 draw nothing themselves and DrawString is never called.
+Also: the firmware reads DWT_CYCCNT (0xE0001004) for tempo timing, which
+QEMU does not implement.
 
 ## Working here
 
