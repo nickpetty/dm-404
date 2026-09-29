@@ -17,6 +17,7 @@
  *   0x82 KNOB     adc (u8), channel (u8), mux (u8), value (u16 LE, 0-4095)
  *   0x83 BMC      a 4-byte packet, as if from the BMC (SHIFT)
  *   0x84 ENCODER  detents to turn the VALUE encoder (s8, + clockwise)
+ *   0x85 AUDIO    input audio, stereo 16-bit LE frames at 48 kHz
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -104,6 +105,17 @@ static void link_message(SP404Link *l, uint8_t type, const uint8_t *p,
             l->bmc_rx(l->opaque, p);
         }
         break;
+    case 0x85:
+        if (l->audio_in) {
+            int16_t lr[256 * 2];
+            int frames = MIN(len / 4, 256);
+
+            for (int i = 0; i < frames * 2; i++) {
+                lr[i] = (int16_t)lduw_le_p(p + i * 2);
+            }
+            l->audio_in(l->opaque, lr, frames);
+        }
+        break;
     case 0x84:
         if (len >= 1 && l->encoder) {
             l->encoder(l->opaque, (int8_t)p[0]);
@@ -117,7 +129,7 @@ static void link_message(SP404Link *l, uint8_t type, const uint8_t *p,
 
 static int link_can_receive(void *opaque)
 {
-    return 256;
+    return 4096;
 }
 
 static void link_receive(void *opaque, const uint8_t *buf, int size)

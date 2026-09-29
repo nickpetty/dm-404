@@ -226,6 +226,26 @@ void EmulatorLink::sendBmc (const uint8_t packet[4])
     send (0x83, packet, 4);
 }
 
+void EmulatorLink::sendAudioIn (const float* left, const float* right, int frames)
+{
+    uint8_t buf[256 * 4];
+    for (int done = 0; done < frames;)
+    {
+        const int n = juce::jmin (256, frames - done);
+        for (int i = 0; i < n; ++i)
+        {
+            const auto l = (int16_t) juce::jlimit (-32768.0f, 32767.0f, left[done + i] * 32767.0f);
+            const auto r = (int16_t) juce::jlimit (-32768.0f, 32767.0f, right[done + i] * 32767.0f);
+            buf[i * 4] = (uint8_t) (l & 0xff);
+            buf[i * 4 + 1] = (uint8_t) ((l >> 8) & 0xff);
+            buf[i * 4 + 2] = (uint8_t) (r & 0xff);
+            buf[i * 4 + 3] = (uint8_t) ((r >> 8) & 0xff);
+        }
+        send (0x85, buf, n * 4);
+        done += n;
+    }
+}
+
 void EmulatorLink::sendEncoder (int detents)
 {
     while (detents != 0)

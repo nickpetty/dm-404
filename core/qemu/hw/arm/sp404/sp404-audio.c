@@ -8,7 +8,7 @@
  *   bitmask of buses in use, not audio.
  * - The receiver gets back, on RX line 0 words 0 and 1, the sum of TX line
  *   3 words 0-7 (even to the left, odd to the right): the resampling path.
- *   Real inputs would add in there too; there are none yet. RX slots are
+ *   The unit's inputs (from the frontend) are mixed in there. RX slots are
  *   read as 16-bit samples (RCR5 puts the first bit at bit 15, and the
  *   firmware's DMA reads RDR 16 bits at a time).
  *
@@ -109,6 +109,16 @@ static void sp404_audio_frame(void *opaque,
         rx[0][0] = (uint16_t)clip16(loop_l);
         rx[0][1] = (uint16_t)clip16(loop_r);
     }
+    if (a->in_count && a->in_slot + 1 < (int)rx_words) {
+        int16_t il = a->in_ring[a->in_head * 2], ir = a->in_ring[a->in_head * 2 + 1];
+        int32_t sl = (int16_t)rx[0][a->in_slot] + il;
+        int32_t sr = (int16_t)rx[0][a->in_slot + 1] + ir;
+
+        rx[0][a->in_slot] = (uint16_t)(sl > INT16_MAX ? INT16_MAX : sl < INT16_MIN ? INT16_MIN : sl);
+        rx[0][a->in_slot + 1] = (uint16_t)(sr > INT16_MAX ? INT16_MAX : sr < INT16_MIN ? INT16_MIN : sr);
+        a->in_head = (a->in_head + 1) % 16384;
+        a->in_count--;
+    }
     lr[0] = clip16(l);
     lr[1] = clip16(r);
     if (a->out) {
@@ -124,11 +134,32 @@ static void sp404_audio_frame(void *opaque,
     }
 }
 
+void sp404_audio_input(SP404Audio *a, const int16_t *lr, int frames)
+{
+    for (int i = 0; i < frames; i++) {
+        if (a->in_count == 16384) {
+            /* Overrun: the frontend is ahead; drop the oldest. */
+            a->in_head = (a->in_head + 1) % 16384;
+            a->in_count--;
+        }
+        unsigned at = (a->in_head + a->in_count) % 16384;
+        a->in_ring[at * 2] = lr[i * 2];
+        a->in_ring[at * 2 + 1] = lr[i * 2 + 1];
+        a->in_count++;
+    }
+}
+
 void sp404_audio_init(SP404Audio *a, IMXRTSAI *sai)
 {
     const char *wav = getenv("SP404_WAV");
+    const char *slot = getenv("SP404_IN_SLOT");
 
     memset(a, 0, sizeof(*a));
+    /*
+     * The inputs arrive on RX line 0 words 0 and 1, where sampling and the
+     * REC level meter read them (with the resampling loopback mixed in).
+     */
+    a->in_slot = slot ? atoi(slot) : 0;
     if (wav) {
         a->wav = fopen(wav, "wb");
         if (a->wav) {

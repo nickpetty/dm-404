@@ -32,6 +32,8 @@ public:
     void sendKnob (int adc, int channel, int mux, int value);
     void sendBmc (const uint8_t packet[4]);
     void sendEncoder (int detents);
+    // The unit's inputs: 48 kHz stereo, sent as it comes.
+    void sendAudioIn (const float* left, const float* right, int frames);
 
     // Gain applied to the emulator's audio: the unit's VOLUME knob is an
     // analog pot after the DAC, which the firmware never sees.

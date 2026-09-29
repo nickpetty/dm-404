@@ -3,6 +3,7 @@
 // The window: the SP-404MKII panel, with the debug drawer beside it.
 class MainComponent : public juce::Component,
                       private juce::AudioIODeviceCallback,
+                      private juce::ChangeListener,
                       private juce::Timer
 {
 public:
@@ -16,13 +17,13 @@ public:
         link.onBmcPacket = [this] (const uint8_t* p)
         {
             debug.logBmc (p);
-            if ((p[0] & 0x0f) == 1 && p[1] == 0x00)
+            if ((p[0] & 0x0f) == 1 && p[1] <= 0x01)
             {
-                const int idx = p[2], value = p[3];
-                juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<PanelComponent> (&panel), idx, value]
+                const int page = p[1], idx = p[2], value = p[3];
+                juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<PanelComponent> (&panel), page, idx, value]
                 {
                     if (safe != nullptr)
-                        safe->setLedState (idx, value);
+                        safe->setLedState (page, idx, value);
                 });
             }
         };
@@ -30,12 +31,28 @@ public:
         const auto error = link.start (EmulatorLink::defaultPaths());
         status.setText (error.isEmpty() ? "Starting emulator..." : error, juce::dontSendNotification);
 
-        audio.initialiseWithDefaultDevices (0, 2);
-        auto setup = audio.getAudioDeviceSetup();
-        setup.sampleRate = 48000.0;
-        setup.bufferSize = 256;
-        audio.setAudioDeviceSetup (setup, true);
+        // Audio: the device settings saved last time, else the default
+        // device at the emulator's own 48 kHz.
+        juce::PropertiesFile::Options opts;
+        opts.applicationName = "Doom-404";
+        opts.filenameSuffix = ".settings";
+        opts.folderName = "Doom-404";
+        opts.osxLibrarySubFolder = "Application Support";
+        settings = std::make_unique<juce::PropertiesFile> (opts);
+        auto saved = settings->getXmlValue ("audioDevice");
+        audio.initialise (2, 2, saved.get(), true);
+        if (saved == nullptr)
+        {
+            auto setup = audio.getAudioDeviceSetup();
+            setup.sampleRate = 48000.0;
+            setup.bufferSize = 256;
+            audio.setAudioDeviceSetup (setup, true);
+        }
+        audio.addChangeListener (this);
         audio.addAudioCallback (this);
+
+        audioButton.onClick = [this] { showAudioSettings(); };
+        addAndMakeVisible (audioButton);
 
         startTimerHz (60);
         setSize (1280, 900);
@@ -43,6 +60,7 @@ public:
 
     ~MainComponent() override
     {
+        audio.removeChangeListener (this);
         audio.removeAudioCallback (this);
         link.stop();
     }
@@ -50,7 +68,9 @@ public:
     void resized() override
     {
         auto r = getLocalBounds();
-        status.setBounds (r.removeFromBottom (22));
+        auto bottom = r.removeFromBottom (24);
+        audioButton.setBounds (bottom.removeFromRight (140).reduced (2));
+        status.setBounds (bottom);
         // The panel keeps the unit's 100:160 proportions.
         const int panelW = juce::jmin (r.getWidth() / 2, r.getHeight() * 100 / 160);
         panel.setBounds (r.removeFromLeft (panelW));
@@ -58,6 +78,28 @@ public:
     }
 
 private:
+    void showAudioSettings()
+    {
+        auto* selector = new juce::AudioDeviceSelectorComponent (audio, 0, 2, 2, 2, false, false, true, false);
+        selector->setSize (520, 460);
+        juce::DialogWindow::LaunchOptions o;
+        o.content.setOwned (selector);
+        o.dialogTitle = "Audio settings";
+        o.dialogBackgroundColour = juce::Colour (0xff1c1d20);
+        o.escapeKeyTriggersCloseButton = true;
+        o.useNativeTitleBar = true;
+        o.resizable = false;
+        o.launchAsync();
+    }
+
+    void changeListenerCallback (juce::ChangeBroadcaster*) override
+    {
+        // Settings changed in the dialog: keep them for next time.
+        if (auto xml = audio.createStateXml())
+            settings->setValue ("audioDevice", xml.get());
+        settings->saveIfNeeded();
+    }
+
     void timerCallback() override
     {
         if (link.getScreenCount() != lastScreen)
@@ -74,27 +116,71 @@ private:
                         juce::dontSendNotification);
     }
 
-    void audioDeviceIOCallbackWithContext (const float* const*, int, float* const* out, int numOut,
+    void audioDeviceIOCallbackWithContext (const float* const* in, int numIn, float* const* out, int numOut,
                                            int numSamples, const juce::AudioIODeviceCallbackContext&) override
     {
+        // Inputs: the first two enabled channels (one is used for both
+        // sides), at 48 kHz, to the unit's inputs.
+        if (numIn > 0 && link.isConnected())
+        {
+            const float* l = in[0];
+            const float* r = numIn > 1 ? in[1] : in[0];
+            const double inRatio = deviceRate.load() / 48000.0;
+            if (std::abs (inRatio - 1.0) < 1.0e-6)
+                link.sendAudioIn (l, r, numSamples);
+            else
+            {
+                const int outFrames = (int) (numSamples / inRatio);
+                capL.resize ((size_t) outFrames + 1);
+                capR.resize ((size_t) outFrames + 1);
+                captureL.process (inRatio, l, capL.data(), outFrames, numSamples, 0);
+                captureR.process (inRatio, r, capR.data(), outFrames, numSamples, 0);
+                link.sendAudioIn (capL.data(), capR.data(), outFrames);
+            }
+        }
+
+        for (int ch = 0; ch < numOut; ++ch)
+            juce::FloatVectorOperations::clear (out[ch], numSamples);
         if (numOut < 2)
             return;
-        // Keep a small cushion; if the emulator runs ahead, skip the excess
-        // rather than drift further behind.
-        const int backlog = link.audioBacklog();
-        if (backlog > 9600)
+
+        // The emulator makes 48 kHz; other device rates are resampled. The
+        // FIFO is kept a little ahead of the device: when the emulator runs
+        // fast, the surplus is dropped rather than letting latency grow.
+        const double ratio = 48000.0 / deviceRate.load();
+        const int target = juce::jmax (1024, (int) (numSamples * ratio) * 3);
+        if (const int backlog = link.audioBacklog(); backlog > target * 4)
         {
-            std::vector<float> scratch ((size_t) (backlog - 2400) * 2);
-            link.readAudio (scratch.data(), scratch.data() + (backlog - 2400), backlog - 2400);
+            const int drop = backlog - target;
+            scratchL.resize ((size_t) drop);
+            scratchR.resize ((size_t) drop);
+            link.readAudio (scratchL.data(), scratchR.data(), drop);
         }
-        const int got = link.readAudio (out[0], out[1], numSamples);
-        for (int ch = 0; ch < 2; ++ch)
-            juce::FloatVectorOperations::clear (out[ch] + got, numSamples - got);
-        for (int ch = 2; ch < numOut; ++ch)
-            juce::FloatVectorOperations::clear (out[ch], numSamples);
+
+        if (std::abs (ratio - 1.0) < 1.0e-6)
+        {
+            link.readAudio (out[0], out[1], numSamples);
+            return;
+        }
+        const int need = (int) std::ceil (numSamples * ratio) + 4;
+        if (link.audioBacklog() < need)
+            return;                                     // underrun: silence
+        inL.resize ((size_t) need);
+        inR.resize ((size_t) need);
+        const int got = link.readAudio (inL.data(), inR.data(), need);
+        const int usedL = resampleL.process (ratio, inL.data(), out[0], numSamples, got, 0);
+        resampleR.process (ratio, inR.data(), out[1], numSamples, got, 0);
+        juce::ignoreUnused (usedL);
     }
 
-    void audioDeviceAboutToStart (juce::AudioIODevice*) override {}
+    void audioDeviceAboutToStart (juce::AudioIODevice* dev) override
+    {
+        deviceRate = dev->getCurrentSampleRate();
+        resampleL.reset();
+        resampleR.reset();
+        captureL.reset();
+        captureR.reset();
+    }
     void audioDeviceStopped() override {}
 
     EmulatorLink link;
@@ -102,6 +188,11 @@ private:
     DebugPanel debug;
     juce::Label status;
     juce::AudioDeviceManager audio;
+    std::unique_ptr<juce::PropertiesFile> settings;
+    juce::TextButton audioButton { "Audio settings..." };
+    std::atomic<double> deviceRate { 48000.0 };
+    juce::LagrangeInterpolator resampleL, resampleR, captureL, captureR;
+    std::vector<float> inL, inR, scratchL, scratchR, capL, capR;
     uint32_t lastScreen = 0;
 };
 

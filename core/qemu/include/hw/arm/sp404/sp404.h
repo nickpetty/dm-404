@@ -321,7 +321,14 @@ typedef struct SP404Audio {
     /* Stereo output, for the frontend link. */
     void (*out)(void *opaque, const int16_t *lr, int frames);
     void *out_opaque;
+    /* Stereo input from the frontend, played into RX line 0 at in_slot. */
+    int16_t in_ring[16384 * 2];
+    unsigned in_head, in_count;
+    int in_slot;
 } SP404Audio;
+
+/* Input audio (48 kHz stereo) from the frontend: the unit's inputs. */
+void sp404_audio_input(SP404Audio *a, const int16_t *lr, int frames);
 
 void sp404_audio_init(SP404Audio *a, IMXRTSAI *sai);
 
@@ -351,13 +358,14 @@ struct SP404Link {
     uint8_t last_img[SSD1309_WIDTH * SSD1309_HEIGHT / 8];
     uint8_t audio[64 * 4];
     int audio_len;
-    uint8_t rx[4 + 256];
+    uint8_t rx[4 + 4096];
     int rx_len;
     void *opaque;
     void (*key)(void *opaque, int row, int col, bool pressed);
     void (*knob)(void *opaque, int adc, int ch, int mux, uint16_t value);
     void (*bmc_rx)(void *opaque, const uint8_t *pkt);
     void (*encoder)(void *opaque, int steps);
+    void (*audio_in)(void *opaque, const int16_t *lr, int frames);
 };
 
 void sp404_link_init(SP404Link *l, Chardev *chr, SSD1309State *oled);

@@ -125,11 +125,19 @@
     ],
     "led": 71
   },
+  "BPM SYNC": {
+    "key": [
+      6,
+      3
+    ],
+    "led": 62
+  },
   "BUS FX": {
     "key": [
       0,
       1
-    ]
+    ],
+    "led": 49
   },
   "C/H": {
     "key": [
@@ -142,7 +150,8 @@
     "key": [
       4,
       2
-    ]
+    ],
+    "led": 68
   },
   "CTRL 1": {
     "analog": [
@@ -176,7 +185,15 @@
     "key": [
       0,
       4
-    ]
+    ],
+    "led": 59
+  },
+  "DELAY": {
+    "key": [
+      2,
+      0
+    ],
+    "led": 78
   },
   "DJFX LOOPER": {
     "key": [
@@ -192,12 +209,19 @@
     ],
     "led": 74
   },
+  "EXIT": {
+    "key": [
+      5,
+      2
+    ],
+    "led": 67
+  },
   "EXT SOURCE": {
     "key": [
       0,
       0
     ],
-    "led": 63
+    "led": 51
   },
   "FILTER+DRIVE": {
     "key": [
@@ -206,12 +230,40 @@
     ],
     "led": 76
   },
+  "GATE": {
+    "key": [
+      2,
+      3
+    ],
+    "led": 63
+  },
+  "HOLD": {
+    "key": [
+      1,
+      1
+    ],
+    "led": 50
+  },
   "ISOLATOR": {
     "key": [
       1,
       0
     ],
     "led": 79
+  },
+  "LOOP": {
+    "key": [
+      5,
+      1
+    ],
+    "led": 64
+  },
+  "MARK": {
+    "key": [
+      2,
+      1
+    ],
+    "led": 58
   },
   "MFX": {
     "key": [
@@ -220,31 +272,54 @@
     ],
     "led": 81
   },
-  "PATTERN SEL": {
+  "PATTERN EDIT": {
+    "key": [
+      6,
+      2
+    ],
+    "led": 54
+  },
+  "PATTERN SELECT": {
     "key": [
       7,
       2
-    ]
+    ],
+    "led": 53
   },
   "PITCH/SPEED": {
     "key": [
       7,
       1
-    ]
+    ],
+    "led": 57
   },
   "REC": {
-    "key": [
-      0,
-      2
-    ],
-    "led": 61
-  },
-  "RESAMPLE": {
     "key": [
       1,
       2
     ],
     "led": 60
+  },
+  "RECORD SETTING": {
+    "key": [
+      2,
+      2
+    ],
+    "led": 55
+  },
+  "REMAIN": {
+    "key": [
+      3,
+      2
+    ],
+    "led": 69
+  },
+  "RESAMPLE": {
+    "key": [
+      0,
+      2
+    ],
+    "led": 61
   },
   "RESONATOR": {
     "key": [
@@ -253,96 +328,44 @@
     ],
     "led": 77
   },
-  "SHIFT": {
-    "bmcDown": "00ffff01",
-    "bmcUp": "00ffff00"
-  },
-  "START/END": {
-    "key": [
-      6,
-      1
-    ]
-  },
-  "SYNC DELAY": {
-    "key": [
-      2,
-      0
-    ],
-    "led": 78
-  },
-  "VALUE": {
-    "analog": [
-      0,
-      6,
-      4
-    ]
-  },
-  "k1,1": {
-    "key": [
-      1,
-      1
-    ]
-  },
-  "k2,1": {
-    "key": [
-      2,
-      1
-    ]
-  },
-  "k2,2": {
-    "key": [
-      2,
-      2
-    ]
-  },
-  "k2,3": {
-    "key": [
-      2,
-      3
-    ]
-  },
-  "k3,1": {
-    "key": [
-      3,
-      1
-    ]
-  },
-  "k3,2": {
-    "key": [
-      3,
-      2
-    ]
-  },
-  "k4,1": {
+  "REVERSE": {
     "key": [
       4,
       1
     ],
     "led": 65
   },
-  "k5,1": {
+  "ROLL": {
     "key": [
-      5,
+      3,
       1
     ],
-    "led": 64
+    "led": 66
   },
-  "k5,2": {
-    "key": [
-      5,
-      2
-    ]
+  "SHIFT": {
+    "bmcDown": "00ffff01",
+    "bmcUp": "00ffff00",
+    "led": 75
   },
-  "k6,2": {
+  "START/END": {
     "key": [
       6,
-      2
-    ]
+      1
+    ],
+    "led": 56
   },
-  "k7,3": {
+  "SUB PAD": {
     "key": [
       7,
       3
+    ],
+    "led": 82
+  },
+  "VALUE": {
+    "analog": [
+      0,
+      6,
+      4
     ]
   }
 }

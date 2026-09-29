@@ -101,43 +101,58 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
         controls.push_back ({ name, type, { x, y, w, h } });
     };
 
-    // Top row: the four knobs.
-    add ("VOLUME", T::knob, 6, 6, 14, 14);
-    add ("CTRL 1", T::knob, 30, 6, 14, 14);
-    add ("CTRL 2", T::knob, 50, 6, 14, 14);
-    add ("CTRL 3", T::knob, 70, 6, 14, 14);
+    // Laid out from a photo of the unit: positions are pixel centres in a
+    // 570 x 915 image of the top panel, scaled into panel units.
+    auto at = [&add] (juce::String name, T type, float cx, float cy, float w, float h)
+    {
+        const float sx = panelW / 570.0f, sy = panelH / 915.0f;
+        add (name, type, cx * sx - w * sx / 2, cy * sy - h * sy / 2, w * sx, h * sy);
+    };
 
-    // Display row: VALUE encoder, EXIT candidates, SHIFT.
-    add ("VALUE", T::knob, 80, 28, 14, 14);
-    add ("SHIFT", T::button, 4, 28, 14, 6);
-    add ("EXT SOURCE", T::button, 4, 36, 14, 6);
-    add ("BUS FX", T::button, 4, 44, 14, 6);
+    // Knobs.
+    at ("VOLUME", T::knob, 100, 100, 70, 70);
+    at ("CTRL 1", T::knob, 222, 100, 70, 70);
+    at ("CTRL 2", T::knob, 345, 100, 70, 70);
+    at ("CTRL 3", T::knob, 470, 100, 70, 70);
 
-    // Effects row: MFX and the five effect keys.
-    const char* fx[] = { "MFX", "FILTER+DRIVE", "RESONATOR", "SYNC DELAY", "ISOLATOR", "DJFX LOOPER" };
+    // Effect keys around the display.
+    at ("FILTER+DRIVE", T::button, 125, 207, 90, 40);
+    at ("RESONATOR", T::button, 110, 260, 90, 40);
+    at ("DELAY", T::button, 123, 315, 90, 40);
+    at ("ISOLATOR", T::button, 447, 207, 90, 40);
+    at ("DJFX LOOPER", T::button, 453, 260, 90, 40);
+    at ("MFX", T::button, 447, 315, 90, 40);
+
+    // Pattern sequencer and sample edit, with the VALUE encoder.
+    const char* row1[] = { "PATTERN SELECT", "PATTERN EDIT", "RECORD SETTING", "START/END", "PITCH/SPEED", "MARK" };
+    const float row1x[] = { 85, 145, 205, 285, 345, 405 };
     for (int i = 0; i < 6; ++i)
-        add (fx[i], T::button, 4 + i * 15.5f, 58, 13, 6);
+        at (row1[i], T::button, row1x[i], 400, 50, 30);
+    at ("VALUE", T::knob, 483, 393, 48, 48);
 
-    // Recording and sample editing.
-    const char* rec[] = { "REC", "RESAMPLE", "PATTERN SEL", "START/END", "PITCH/SPEED", "DEL" };
-    for (int i = 0; i < 6; ++i)
-        add (rec[i], T::button, 4 + i * 15.5f, 66, 13, 6);
+    // Sampling and sample mode.
+    const char* row2[] = { "DEL", "REC", "RESAMPLE", "BPM SYNC", "GATE", "LOOP", "REVERSE", "ROLL" };
+    const float row2x[] = { 85, 145, 205, 264, 309, 361, 423, 483 };
+    for (int i = 0; i < 8; ++i)
+        at (row2[i], T::button, row2x[i], 454, row2x[i] > 300 && i > 4 ? 52.0f : 44.0f, 30);
 
-    // Keys whose names are not known yet, labelled by matrix position.
-    const char* unknown[] = { "COPY", "k4,1", "k5,1", "k1,1", "k2,1", "k2,2",
-                              "k2,3", "k3,1", "k5,2", "k6,2", "k7,3", "k3,2" };
-    for (int i = 0; i < 12; ++i)
-        add (unknown[i], T::button, 4 + (i % 6) * 15.5f, 74 + (i / 6) * 7.0f, 13, 6);
+    // EXIT, COPY, REMAIN, the banks and SHIFT.
+    const char* row3[] = { "EXIT", "COPY", "REMAIN", "A/F", "B/G", "C/H", "D/I", "E/J", "SHIFT" };
+    const float row3x[] = { 85, 145, 205, 264, 309, 355, 400, 445, 491 };
+    for (int i = 0; i < 9; ++i)
+        at (row3[i], T::button, row3x[i], 507, i < 3 ? 50.0f : 36.0f, 30);
 
-    // Banks A/F ... E/J.
-    const char* banks[] = { "A/F", "B/G", "C/H", "D/I", "E/J" };
-    for (int i = 0; i < 5; ++i)
-        add (banks[i], T::button, 4 + i * 15.5f, 82 + 7.0f, 13, 5);
+    // The right-hand column beside the pads.
+    at ("BUS FX", T::button, 472, 575, 72, 60);
+    at ("HOLD", T::button, 472, 655, 72, 60);
+    at ("EXT SOURCE", T::button, 472, 737, 72, 60);
+    at ("SUB PAD", T::button, 472, 817, 72, 60);
 
-    // The 16 pads as on the unit: 1-4 along the bottom, 13-16 at the top.
+    // The 16 pads: 1-4 along the top, 13-16 along the bottom.
+    const float padX[] = { 97, 191, 285, 378 }, padY[] = { 585, 665, 747, 827 };
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c)
-            add (juce::String ((3 - r) * 4 + c + 1), T::pad, 5 + c * 23.0f, 97 + r * 15.5f, 20, 14);
+            at (juce::String (r * 4 + c + 1), T::pad, padX[c], padY[r], 78, 70);
 
     addAndMakeVisible (oled);
     loadBindings();
@@ -186,11 +201,12 @@ void PanelComponent::learn (const Binding& b)
     repaint();
 }
 
-void PanelComponent::setLedState (int index, int value)
+void PanelComponent::setLedState (int page, int index, int value)
 {
-    if (index >= 0 && index < (int) leds.size() && leds[(size_t) index] != value)
+    auto& arr = page == 0 ? leds : levels;
+    if (index >= 0 && index < (int) arr.size() && arr[(size_t) index] != value)
     {
-        leds[(size_t) index] = (uint8_t) value;
+        arr[(size_t) index] = (uint8_t) value;
         repaint();
     }
 }
@@ -203,14 +219,22 @@ juce::Rectangle<float> PanelComponent::toScreen (juce::Rectangle<float> r) const
 
 void PanelComponent::resized()
 {
-    oled.setBounds (toScreen ({ 22, 27, 54, 27 }).toNearestInt());
+    // The OLED sits in a round window: 128x64 at the unit's proportions.
+    oled.setBounds (toScreen ({ 34.2f, 40.2f, 31.6f, 18.8f }).toNearestInt());
 }
 
 void PanelComponent::paint (juce::Graphics& g)
 {
     g.fillAll (body());
+    // The round display window and the dark band behind the knobs.
     g.setColour (juce::Colours::black);
-    g.fillRoundedRectangle (toScreen ({ 21, 26, 56, 29 }), 4.0f);
+    g.fillRoundedRectangle (toScreen ({ 10, 11, 80, 12 }), 8.0f);
+    auto disc = toScreen ({ 30.0f, 27.0f, 40.0f, 0 });
+    disc.setHeight (disc.getWidth());
+    g.fillEllipse (disc);
+    g.setColour (juce::Colour (0xff111214));
+    g.fillRoundedRectangle (toScreen ({ 11, 30, 20, 30 }), 10.0f);
+    g.fillRoundedRectangle (toScreen ({ 69, 30, 20, 30 }), 10.0f);
 
     for (auto& c : controls)
     {
@@ -242,14 +266,17 @@ void PanelComponent::paint (juce::Graphics& g)
                 g.fillRoundedRectangle (r, 3.0f);
                 if (c.led >= 0 && leds[(size_t) c.led] != 0)
                 {
-                    // A lit button: its LED glows through the key.
-                    const float a = leds[(size_t) c.led] / 255.0f;
-                    g.setColour (accent().withAlpha (0.25f + 0.6f * a));
+                    // A lit button: its LED glows through the key, faintly
+                    // at the backlight level, fully when active.
+                    const float level = levels[(size_t) c.led] / 255.0f;
+                    const bool red = c.name == "REC" || c.name == "RESAMPLE" || c.name == "DEL";
+                    g.setColour ((red ? juce::Colour (0xffff2a3a) : accent()).withAlpha (0.12f + 0.78f * level));
                     g.fillRoundedRectangle (r, 3.0f);
                 }
                 g.setColour (ink());
-                g.setFont (juce::FontOptions (r.getHeight() * 0.42f));
-                g.drawText (c.name, r, juce::Justification::centred);
+                g.setFont (juce::FontOptions (juce::jmin (r.getHeight() * 0.36f, r.getWidth() * 0.19f)));
+                g.drawFittedText (c.name.replace ("/", "/ ").replace ("+", "+ "), r.reduced (2.0f).toNearestInt(),
+                                  juce::Justification::centred, 2, 0.8f);
                 break;
             }
             case PanelControl::Type::pad:

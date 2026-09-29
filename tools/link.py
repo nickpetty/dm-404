@@ -11,6 +11,7 @@ ACTION is one of
     knob:ADC,CH,MUX,V   set an analog input
     bmc:AABBCCDD        inject a 4-byte packet from the BMC
     enc:N               turn the VALUE encoder N detents (negative: back)
+    tone:S              play a 440 Hz sine into the unit's input for S seconds
     shot:NAME           save the screen as build/logs/NAME.png
     sweep               tap every matrix key in turn, saving a shot after each
 
@@ -131,6 +132,20 @@ def main():
             elif kind == 'knob':
                 adc, ch, mux, val = map(int, v.split(','))
                 link.send(0x82, struct.pack('<BBBH', adc, ch, mux, val))
+            elif kind == 'tone':
+                # A 440 Hz sine at -6 dB into the unit's input, in real time.
+                import math
+                end = time.time() + float(v)
+                n = 0
+                while time.time() < end:
+                    frames = bytearray()
+                    for i in range(480):
+                        x = int(16000 * math.sin(2 * math.pi * 440 * (n + i) / 48000))
+                        frames += struct.pack('<hh', x, x)
+                    n += 480
+                    link.send(0x85, bytes(frames[:256 * 4]))
+                    link.send(0x85, bytes(frames[256 * 4:]))
+                    time.sleep(0.01)
             elif kind == 'enc':
                 link.send(0x84, struct.pack('<b', int(v)))
             elif kind == 'bmc':

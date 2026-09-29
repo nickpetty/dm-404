@@ -40,6 +40,12 @@ unpacks code to ITCM (0x400), DTCM, OCRAM and SDRAM 0x80000000
 | GPIO2.18/19 | | VALUE encoder quadrature, active low, 4 transitions per detent |
 | DWT_CYCCNT | 0xE0001004 | modelled in the machine (tempo clock reads it) |
 
+Key IDs follow the panel's reading order (BUS FX 0x10, HOLD 0x11, EXT
+SOURCE 0x12, VALUE push 0x13, PATTERN SELECT 0x14 ... ROLL 0x21, EXIT 0x22,
+COPY 0x23, REMAIN 0x24, A/F-E/J 0x25-29, SHIFT 0x2a, FILTER+DRIVE-MFX
+0x2b-30, SUB PAD 0x31), and each key's LED index is its ID + 0x21.
+frontend/panel.json holds the resulting bindings.
+
 VOLUME is an analog pot after the DAC: the firmware never reads it, the
 frontend applies it as output gain. Audio: pads play into TX line 3 slots
 2/3 at modest digital level.
@@ -50,7 +56,11 @@ app dispatches on CIN (table 0x800ebc00); CIN 0/1 are system messages
 on it); 01 FE 11 00 → 00 FF FE '0'; the hello 01 FF 00 01 gets NO answer
 (00 FF 00 01 means "go to page 3", a blank power-off page); 00 FF FF nn =
 SHIFT (key 0x2A) held/released. LEDs go out as 01 00 idx value: idx 0-0x2f
-pad RGB triplets (pad n at 3(n-1)), 0x30-0x52 button LEDs.
+pad RGB triplets (pad n at 3(n-1)), 0x30-0x52 button LEDs; 01 01 idx
+level sets an on LED's brightness (0x1f is the dim backlight).
+
+Inputs: the frontend streams the audio device's input over the link; it is
+mixed into SAI RX line 0 words 0/1, where sampling and the REC meter read.
 
 Firmware facts worth knowing: 94 UI pages, handler table 0x8023b4fc; the
 current page ID is at 0x80245880 (page

@@ -59,7 +59,10 @@ public:
     PanelControl* getLearning() { return learning; }
     void learn (const Binding&);
 
-    void setLedState (int index, int value);
+    // An LED packet from the firmware: "01 page idx value". Page 0 is the
+    // LED's state (on when nonzero; pads: RGB levels), page 1 the brightness
+    // of an "on" button LED (0x1f is the dim backlight level, unset is full).
+    void setLedState (int page, int index, int value);
 
     static juce::File bindingsFile();
     void loadBindings();
@@ -82,4 +85,5 @@ private:
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":
     // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.
     std::array<uint8_t, 128> leds {};
+    std::array<uint8_t, 128> levels = [] { std::array<uint8_t, 128> a; a.fill (0xff); return a; }();
 };
