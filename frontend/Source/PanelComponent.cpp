@@ -110,10 +110,10 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
     };
 
     // Knobs.
-    at ("VOLUME", T::knob, 100, 100, 70, 70);
-    at ("CTRL 1", T::knob, 222, 100, 70, 70);
-    at ("CTRL 2", T::knob, 345, 100, 70, 70);
-    at ("CTRL 3", T::knob, 470, 100, 70, 70);
+    at ("VOLUME", T::knob, 100, 106, 62, 62);
+    at ("CTRL 1", T::knob, 222, 106, 62, 62);
+    at ("CTRL 2", T::knob, 345, 106, 62, 62);
+    at ("CTRL 3", T::knob, 470, 106, 62, 62);
 
     // Effect keys around the display.
     at ("FILTER+DRIVE", T::button, 125, 207, 90, 40);
@@ -143,18 +143,40 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
         at (row3[i], T::button, row3x[i], 507, i < 3 ? 50.0f : 36.0f, 30);
 
     // The right-hand column beside the pads.
-    at ("BUS FX", T::button, 472, 575, 72, 60);
-    at ("HOLD", T::button, 472, 655, 72, 60);
-    at ("EXT SOURCE", T::button, 472, 737, 72, 60);
-    at ("SUB PAD", T::button, 472, 817, 72, 60);
+    at ("BUS FX", T::button, 472, 571, 72, 62);
+    at ("HOLD", T::button, 472, 651, 72, 62);
+    at ("EXT SOURCE", T::button, 472, 733, 72, 62);
+    at ("SUB PAD", T::button, 472, 813, 72, 62);
 
     // The 16 pads: 1-4 along the top, 13-16 along the bottom.
     const float padX[] = { 97, 191, 285, 378 }, padY[] = { 585, 665, 747, 827 };
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c)
-            at (juce::String (r * 4 + c + 1), T::pad, padX[c], padY[r], 78, 70);
+            at (juce::String (r * 4 + c + 1), T::pad, padX[c], padY[r] - 4, 78, 62);
 
     addAndMakeVisible (oled);
+    // What the unit prints under its keys and on its pads.
+    const std::pair<const char*, const char*> subs[] = {
+        { "VOLUME", "MIN        MAX" }, { "CTRL 1", "CUTOFF" }, { "CTRL 2", "RESONANCE" }, { "CTRL 3", "DRIVE" },
+        { "PATTERN SELECT", "UNDO" }, { "START/END", "CHOP" }, { "PITCH/SPEED", "ENVELOPE" },
+        { "LOOP", "PING-PONG" }, { "ROLL", "ROLL SET" }, { "EXIT", "PATTERN STOP" },
+        { "REMAIN", "CURRENT PAD" }, { "BUS FX", "MUTE BUS" }, { "HOLD", "PAUSE" },
+        { "EXT SOURCE", "INPUT SETTING" }, { "SUB PAD", "PROJECT" },
+        { "1", "FIXED VELOCITY" }, { "2", "16 VELOCITY" }, { "3", "CUE" }, { "4", "CHROMATIC" },
+        { "5", "EXCHANGE" }, { "6", "INIT PARAM" }, { "7", "PAD LINK" }, { "8", "MUTE GROUPS" },
+        { "9", "METRONOME" }, { "10", "COUNT-IN" }, { "11", "TAP TEMPO" }, { "12", "GAIN" },
+        { "13", "UTILITY" }, { "14", "IMPORT/EXPORT" }, { "15", "PAD SETTING" }, { "16", "EFX SETTING" } };
+    const char* legends[] = { "BEND+", "BPM+", "BEND+", "BPM+", "BEND-", "BPM-", "BEND-", "BPM-",
+                              "|<<", "SYNC", "|<<", "SYNC", ">/II", "CUE", ">/II", "CUE" };
+    for (auto& c : controls)
+    {
+        for (auto& [name, sub] : subs)
+            if (c.name == name)
+                c.sub = sub;
+        if (c.type == T::pad)
+            c.legend = legends[c.name.getIntValue() - 1];
+    }
+
     loadBindings();
 }
 
@@ -203,10 +225,10 @@ void PanelComponent::learn (const Binding& b)
 
 void PanelComponent::setLedState (int page, int index, int value)
 {
-    auto& arr = page == 0 ? leds : levels;
-    if (index >= 0 && index < (int) arr.size() && arr[(size_t) index] != value)
+    juce::ignoreUnused (page);
+    if (index >= 0 && index < (int) leds.size() && leds[(size_t) index] != value)
     {
-        arr[(size_t) index] = (uint8_t) value;
+        leds[(size_t) index] = (uint8_t) value;
         repaint();
     }
 }
@@ -236,6 +258,26 @@ void PanelComponent::paint (juce::Graphics& g)
     g.fillRoundedRectangle (toScreen ({ 11, 30, 20, 30 }), 10.0f);
     g.fillRoundedRectangle (toScreen ({ 69, 30, 20, 30 }), 10.0f);
 
+    // Section titles printed on the panel (photo pixel coordinates).
+    const float ux = getWidth() / 570.0f, uy = getHeight() / 915.0f;
+    auto title = [&] (const char* text, float x0, float x1, float y)
+    {
+        auto t = juce::Rectangle<float> (x0 * ux, y * uy, (x1 - x0) * ux, 12.0f * uy);
+        g.setColour (ink().withAlpha (0.8f));
+        g.setFont (juce::FontOptions (t.getHeight() * 0.85f));
+        g.drawText (text, t, juce::Justification::centred);
+        g.drawLine (t.getX(), t.getBottom(), t.getRight(), t.getBottom(), 1.0f);
+    };
+    title ("PATTERN SEQUENCER", 60, 230, 368);
+    title ("SAMPLE EDIT", 260, 430, 368);
+    title ("PUSH ENTER", 450, 516, 356);
+    title ("SAMPLING", 120, 230, 425);
+    title ("SAMPLE MODE", 395, 512, 425);
+    title ("BANK", 392, 470, 478);
+    title ("DJ MODE", 380, 470, 521);
+    title ("CH1", 60, 235, 535);
+    title ("CH2", 245, 370, 535);
+
     for (auto& c : controls)
     {
         auto r = toScreen (c.bounds);
@@ -256,7 +298,10 @@ void PanelComponent::paint (juce::Graphics& g)
                 g.setColour (ink());
                 g.drawLine (centre.x, centre.y, centre.x + rad * std::cos (a), centre.y - rad * std::sin (a), 2.5f);
                 g.setFont (juce::FontOptions (r.getHeight() * 0.22f));
-                g.drawText (c.name, r.withY (r.getBottom()).withHeight (r.getHeight() * 0.3f),
+                // Knob names are printed above the knob, as on the unit;
+                // VALUE's below it.
+                g.drawText (c.name, c.name == "VALUE" ? r.withY (r.getBottom()).withHeight (r.getHeight() * 0.3f)
+                                                      : r.withY (r.getY() - r.getHeight() * 0.3f).withHeight (r.getHeight() * 0.3f),
                             juce::Justification::centred);
                 break;
             }
@@ -268,7 +313,7 @@ void PanelComponent::paint (juce::Graphics& g)
                 {
                     // A lit button: its LED glows through the key, faintly
                     // at the backlight level, fully when active.
-                    const float level = levels[(size_t) c.led] / 255.0f;
+                    const float level = leds[(size_t) c.led] / 255.0f;
                     const bool red = c.name == "REC" || c.name == "RESAMPLE" || c.name == "DEL";
                     g.setColour ((red ? juce::Colour (0xffff2a3a) : accent()).withAlpha (0.12f + 0.78f * level));
                     g.fillRoundedRectangle (r, 3.0f);
@@ -290,17 +335,37 @@ void PanelComponent::paint (juce::Graphics& g)
                     if (rgb.getBrightness() > 0.0f)
                     {
                         // The pad's LEDs light it from inside.
-                        g.setColour (rgb.withMultipliedBrightness (1.6f).withAlpha (0.85f));
+                        g.setColour (rgb.withAlpha (0.9f));
                         g.fillRoundedRectangle (r.reduced (2.0f), 5.0f);
                     }
                 }
                 g.setColour (juce::Colour (0xff55585f));
                 g.drawRoundedRectangle (r.reduced (1.0f), 5.0f, 1.5f);
-                g.setColour (juce::Colours::black.withAlpha (0.55f));
-                g.setFont (juce::FontOptions (r.getHeight() * 0.25f));
-                g.drawText (c.name, r.reduced (6.0f), juce::Justification::topLeft);
+                // The number top right and the DJ-mode legend in a box, as
+                // printed on the unit's pads.
+                g.setColour (juce::Colour (0xffffa53a));
+                g.setFont (juce::FontOptions (r.getHeight() * 0.3f, juce::Font::bold));
+                g.drawText (c.name, r.reduced (r.getWidth() * 0.1f, r.getHeight() * 0.06f), juce::Justification::topRight);
+                if (c.legend.isNotEmpty())
+                {
+                    auto box = juce::Rectangle<float> (r.getX() + r.getWidth() * 0.1f, r.getY() + r.getHeight() * 0.58f,
+                                                       r.getWidth() * 0.38f, r.getHeight() * 0.17f);
+                    g.drawRoundedRectangle (box, 2.0f, 1.0f);
+                    g.setFont (juce::FontOptions (box.getHeight() * 0.75f, juce::Font::bold));
+                    g.drawText (c.legend, box, juce::Justification::centred);
+                }
                 break;
             }
+        }
+        if (c.sub.isNotEmpty())
+        {
+            // The SHIFT function, printed under the key (boxed under pads).
+            auto s = r.withY (r.getBottom() + r.getHeight() * 0.06f).withHeight (juce::jmax (9.0f, getHeight() / panelH * 2.6f));
+            g.setColour (ink().withAlpha (0.85f));
+            g.setFont (juce::FontOptions (s.getHeight() * 0.8f));
+            g.drawFittedText (c.sub, s.toNearestInt(), juce::Justification::centred, 1, 0.6f);
+            if (c.type == PanelControl::Type::pad)
+                g.drawRect (s.reduced (2.0f, 0.0f), 1.0f);
         }
         if (c.binding.kind == Binding::Kind::none || learningThis)
         {

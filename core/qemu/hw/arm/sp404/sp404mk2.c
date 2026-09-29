@@ -425,6 +425,18 @@ static void sp404_link_encoder(void *opaque, int steps)
     }
 }
 
+/*
+ * The firmware's audio interrupts are the eDMA completions of channel 3
+ * (the TX chain) and 4 (RX): until they are serviced, the next block's
+ * buffers are not ready.
+ */
+static bool sp404_audio_ready(void *opaque)
+{
+    SP404Machine *m = opaque;
+
+    return !(m->edma.intr & ((1u << 3) | (1u << 4)));
+}
+
 static void sp404_link_audio_in(void *opaque, const int16_t *lr, int frames)
 {
     SP404Machine *m = opaque;
@@ -646,6 +658,8 @@ static void sp404_init(MachineState *machine)
                                    sp404_sai[i].tx_src));
     }
     sp404_audio_init(&m->audio, &m->sai[0]);
+    m->sai[0].ready = sp404_audio_ready;
+    m->sai[0].ready_opaque = m;
 
     object_initialize_child(OBJECT(machine), "pit", &m->pit, TYPE_IMXRT_PIT);
     sysbus_realize(SYS_BUS_DEVICE(&m->pit), &error_fatal);

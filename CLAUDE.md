@@ -46,6 +46,13 @@ COPY 0x23, REMAIN 0x24, A/F-E/J 0x25-29, SHIFT 0x2a, FILTER+DRIVE-MFX
 0x2b-30, SUB PAD 0x31), and each key's LED index is its ID + 0x21.
 frontend/panel.json holds the resulting bindings.
 
+Audio timing: the firmware double-buffers only two 64-frame blocks (2.7 ms).
+The SAI clocks on a host timer while the CPU runs in its own thread, so the
+machine's ready hook holds each block until the TX/RX DMA interrupts
+(eDMA ch3/ch4) have been serviced (up to 5 ms): without it, streamed
+samples (projects exceed the 64 MB SDRAM and play from the eMMC) came out
+with silent blocks. icount mode was tried and stalls boot.
+
 VOLUME is an analog pot after the DAC: the firmware never reads it, the
 frontend applies it as output gain. Audio: pads play into TX line 3 slots
 2/3 at modest digital level.
@@ -56,8 +63,10 @@ app dispatches on CIN (table 0x800ebc00); CIN 0/1 are system messages
 on it); 01 FE 11 00 → 00 FF FE '0'; the hello 01 FF 00 01 gets NO answer
 (00 FF 00 01 means "go to page 3", a blank power-off page); 00 FF FF nn =
 SHIFT (key 0x2A) held/released. LEDs go out as 01 00 idx value: idx 0-0x2f
-pad RGB triplets (pad n at 3(n-1)), 0x30-0x52 button LEDs; 01 01 idx
-level sets an on LED's brightness (0x1f is the dim backlight).
+pad RGB triplets (pad n at 3(n-1)), 0x30-0x52 button LEDs. Page 1
+(01 01 idx value) writes the same LEDs and the latest write on either page
+wins: keys and playing pads are lit on page 0 and dimmed back on page 1
+(0x1f is the backlight level; a pad whose sample ends gets a dim colour).
 
 Inputs: the frontend streams the audio device's input over the link; it is
 mixed into SAI RX line 0 words 0/1, where sampling and the REC meter read.

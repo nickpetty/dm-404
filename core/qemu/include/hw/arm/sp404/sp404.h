@@ -243,6 +243,13 @@ struct IMXRTSAI {
     uint32_t rate;
     IMXRTSAIFrameHook *frame_hook;
     void *frame_opaque;
+    /*
+     * Asked before each block: false while the software has not caught up
+     * (its audio interrupt unserviced), and the block waits for it.
+     */
+    bool (*ready)(void *opaque);
+    void *ready_opaque;
+    int64_t stall_start;
     /* [0] transmitter, [1] receiver */
     uint32_t csr[2], cr1[2], cr2[2], cr3[2], cr4[2], cr5[2], mr[2];
     IMXRTSAIFifo fifo[2][4];

@@ -184,6 +184,23 @@ static void sai_tick(void *opaque)
     if (!sai_running(s)) {
         return;
     }
+    /*
+     * The hardware plays on regardless, but here the emulated CPU and this
+     * timer run in different threads: a block clocked out before the
+     * firmware's interrupt handler has refilled the buffer would play stale
+     * or cleared data. Wait for it (briefly: a stuck handler must not stop
+     * the clock for good).
+     */
+    if (s->ready && !s->ready(s->ready_opaque)) {
+        if (!s->stall_start) {
+            s->stall_start = now;
+        }
+        if (now - s->stall_start < 5 * SCALE_MS) {
+            timer_mod(s->timer, now + 50 * SCALE_US);
+            return;
+        }
+    }
+    s->stall_start = 0;
     for (i = 0; i < BLOCK; i++) {
         sai_frame(s);
     }

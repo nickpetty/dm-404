@@ -28,6 +28,8 @@ struct PanelControl
     juce::Rectangle<float> bounds;      // in panel units (0-100 x 0-160)
     Binding binding;
     int led = -1;                       // button LED index ("01 00 idx v")
+    juce::String sub;                   // printed under it (the SHIFT function)
+    juce::String legend;                // printed on a pad (its DJ-mode role)
     bool pressed = false;
     float value = 0.5f;                 // knobs, 0-1
 };
@@ -59,9 +61,10 @@ public:
     PanelControl* getLearning() { return learning; }
     void learn (const Binding&);
 
-    // An LED packet from the firmware: "01 page idx value". Page 0 is the
-    // LED's state (on when nonzero; pads: RGB levels), page 1 the brightness
-    // of an "on" button LED (0x1f is the dim backlight level, unset is full).
+    // An LED packet from the firmware: "01 page idx value". Both pages set
+    // the LED's level and the latest write wins: the firmware lights a key
+    // or a playing pad on page 0 and dims it back (0x1f: the backlight
+    // level; pads: a dim colour) on page 1.
     void setLedState (int page, int index, int value);
 
     static juce::File bindingsFile();
@@ -85,5 +88,4 @@ private:
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":
     // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.
     std::array<uint8_t, 128> leds {};
-    std::array<uint8_t, 128> levels = [] { std::array<uint8_t, 128> a; a.fill (0xff); return a; }();
 };
