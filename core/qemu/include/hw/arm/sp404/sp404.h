@@ -250,6 +250,7 @@ struct IMXRTSAI {
     bool (*ready)(void *opaque);
     void *ready_opaque;
     int64_t stall_start;
+    uint64_t late_blocks;       /* played before the software caught up */
     /* [0] transmitter, [1] receiver */
     uint32_t csr[2], cr1[2], cr2[2], cr3[2], cr4[2], cr5[2], mr[2];
     IMXRTSAIFifo fifo[2][4];

@@ -199,6 +199,9 @@ static void sai_tick(void *opaque)
             timer_mod(s->timer, now + 50 * SCALE_US);
             return;
         }
+        s->late_blocks++;
+        SP404_TRACE("sai", "%s: block played late (%" PRIu64 " so far)",
+                    s->name ? s->name : "?", s->late_blocks);
     }
     s->stall_start = 0;
     for (i = 0; i < BLOCK; i++) {

@@ -84,17 +84,25 @@ public:
         panel.setShiftFromKeyboard (mods.isShiftDown());
     }
 
-    // --test-audio: hit pad 3 once a second for 8 s, write what went to the
-    // audio device as a WAV, return. For checking the audio path unattended.
+    // --test-audio: pads 13 and 14 twice each, then pad 3 once, left to
+    // play for 10 s; what went to the audio device is saved as a WAV and
+    // the counts shown. For checking the audio path unattended.
     void runAudioTest (const juce::File& out, std::function<void()> done)
     {
         recording = true;
-        for (int i = 0; i < 8; ++i)
+        underruns = 0;
+        skips = 0;
+        auto hit = [this] (int at, int ch, int mux)
         {
-            juce::Timer::callAfterDelay (1000 * i + 200, [this] { link.sendKnob (0, 4, 5, 300); });
-            juce::Timer::callAfterDelay (1000 * i + 300, [this] { link.sendKnob (0, 4, 5, 4095); });
-        }
-        juce::Timer::callAfterDelay (9000, [this, out, done]
+            juce::Timer::callAfterDelay (at, [this, ch, mux] { link.sendKnob (0, ch, mux, 300); });
+            juce::Timer::callAfterDelay (at + 100, [this, ch, mux] { link.sendKnob (0, ch, mux, 4095); });
+        };
+        hit (300, 5, 2);        // pad 13
+        hit (800, 5, 1);        // pad 14
+        hit (1300, 5, 2);
+        hit (1800, 5, 1);
+        hit (2500, 4, 5);       // pad 3
+        juce::Timer::callAfterDelay (13000, [this, out, done]
         {
             recording = false;
             juce::AudioBuffer<float> buf;
@@ -111,6 +119,11 @@ public:
                 w->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
                 delete w;
             }
+            out.withFileExtension ("txt").replaceWithText ("underruns " + juce::String (underruns.load())
+                                                           + "\nskips " + juce::String (skips.load()) + "\n");
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Audio test finished",
+                "Saved " + out.getFullPathName() + "\n\nUnderruns (ran dry): " + juce::String (underruns.load())
+                    + "\nSkips (jumped ahead): " + juce::String (skips.load()));
             done();
         });
     }
@@ -149,6 +162,8 @@ private:
         status.setText (juce::String (link.isConnected() ? "Running" : "Not connected")
                             + "   screens " + juce::String (lastScreen)
                             + "   audio backlog " + juce::String (link.audioBacklog())
+                            + "   underruns " + juce::String (underruns.load())
+                            + "   skips " + juce::String (skips.load())
                             + "   device " + (dev ? dev->getName() + " @ " + juce::String (dev->getCurrentSampleRate()) : juce::String ("none"))
                             + "   right-click a control to learn its binding",
                         juce::dontSendNotification);
@@ -189,11 +204,12 @@ private:
         // from running dry or from skipping ahead. Input is staged, so no
         // sample is ever thrown away between callbacks.
         const double base = 48000.0 / deviceRate.load();
-        const double target = 1440.0;                       // 30 ms at 48 kHz
+        const double target = 2880.0;                       // 60 ms at 48 kHz
         const double fill = link.audioBacklog() + (double) staged;
 
         if (fill > target * 8)
         {
+            ++skips;
             // Far behind (the device stalled, or the emulator burst ahead):
             // one jump back to the cushion is better than seconds of lag.
             const int drop = (int) (fill - target) - staged;
@@ -217,6 +233,8 @@ private:
         {
             // Dry: wait for the cushion to build up again rather than play
             // fragments.
+            if (primed)
+                ++underruns;
             primed = false;
             return;
         }
@@ -266,6 +284,7 @@ private:
     std::vector<float> recorded[2];
     double steer = 0.0;             // rate correction holding the cushion
     bool primed = false;
+    std::atomic<int> underruns { 0 }, skips { 0 };
     uint32_t lastScreen = 0;
 };
 
@@ -277,6 +296,13 @@ public:
 
     void initialise (const juce::String& commandLine) override
     {
+        // A crash leaves a stack trace in the temp folder (doom404-crash.txt).
+        juce::SystemStats::setApplicationCrashHandler ([] (void*)
+        {
+            juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("doom404-crash.txt")
+                .replaceWithText (juce::SystemStats::getStackBacktrace());
+        });
+
         window = std::make_unique<Window>();
 
         // --snapshot FILE: render the window to a PNG once the emulator has
@@ -288,7 +314,7 @@ public:
             juce::Timer::callAfterDelay (25000, [this, out]
             {
                 if (auto* mc = dynamic_cast<MainComponent*> (window->getContentComponent()))
-                    mc->runAudioTest (out, [this] { quit(); });
+                    mc->runAudioTest (out, [] {});
             });
         }
         if (const int i = args.indexOf ("--snapshot"); i >= 0 && i + 1 < args.size())
