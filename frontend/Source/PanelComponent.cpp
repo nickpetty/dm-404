@@ -107,33 +107,37 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
     add ("CTRL 2", T::knob, 50, 6, 14, 14);
     add ("CTRL 3", T::knob, 70, 6, 14, 14);
 
-    // Display row: VALUE encoder and the keys around the screen.
+    // Display row: VALUE encoder, EXIT candidates, SHIFT.
     add ("VALUE", T::knob, 80, 28, 14, 14);
-    add ("EXIT", T::button, 80, 46, 14, 6);
     add ("SHIFT", T::button, 4, 28, 14, 6);
-    add ("REC", T::button, 4, 36, 14, 6);
-    add ("RESAMPLE", T::button, 4, 44, 14, 6);
+    add ("EXT SOURCE", T::button, 4, 36, 14, 6);
+    add ("BUS FX", T::button, 4, 44, 14, 6);
 
-    // Effects row.
-    const char* fx[] = { "MFX", "FX 1", "FX 2", "FX 3", "FX 4", "FX 5" };
+    // Effects row: MFX and the five effect keys.
+    const char* fx[] = { "MFX", "FILTER+DRIVE", "RESONATOR", "SYNC DELAY", "ISOLATOR", "DJFX LOOPER" };
     for (int i = 0; i < 6; ++i)
         add (fx[i], T::button, 4 + i * 15.5f, 58, 13, 6);
 
-    // Sequencer and pad-mode row.
-    const char* seq[] = { "PATTERN SEL", "TR-REC", "HOLD", "ROLL", "SUB PAD", "BUS FX" };
+    // Recording and sample editing.
+    const char* rec[] = { "REC", "RESAMPLE", "PATTERN SEL", "START/END", "PITCH/SPEED", "DEL" };
     for (int i = 0; i < 6; ++i)
-        add (seq[i], T::button, 4 + i * 15.5f, 68, 13, 6);
+        add (rec[i], T::button, 4 + i * 15.5f, 66, 13, 6);
+
+    // Keys whose names are not known yet, labelled by matrix position.
+    const char* unknown[] = { "COPY", "k4,1", "k5,1", "k1,1", "k2,1", "k2,2",
+                              "k2,3", "k3,1", "k5,2", "k6,2", "k7,3", "k3,2" };
+    for (int i = 0; i < 12; ++i)
+        add (unknown[i], T::button, 4 + (i % 6) * 15.5f, 74 + (i / 6) * 7.0f, 13, 6);
 
     // Banks A/F ... E/J.
     const char* banks[] = { "A/F", "B/G", "C/H", "D/I", "E/J" };
     for (int i = 0; i < 5; ++i)
-        add (banks[i], T::button, 4 + i * 15.5f, 78, 13, 6);
-    add ("MARK", T::button, 81.5f, 78, 13, 6);
+        add (banks[i], T::button, 4 + i * 15.5f, 82 + 7.0f, 13, 5);
 
     // The 16 pads as on the unit: 1-4 along the bottom, 13-16 at the top.
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c)
-            add (juce::String ((3 - r) * 4 + c + 1), T::pad, 5 + c * 23.0f, 90 + r * 17.0f, 20, 15);
+            add (juce::String ((3 - r) * 4 + c + 1), T::pad, 5 + c * 23.0f, 97 + r * 15.5f, 20, 14);
 
     addAndMakeVisible (oled);
     loadBindings();
@@ -265,7 +269,7 @@ void PanelComponent::paint (juce::Graphics& g)
                 }
                 g.setColour (juce::Colour (0xff55585f));
                 g.drawRoundedRectangle (r.reduced (1.0f), 5.0f, 1.5f);
-                g.setColour (ink().withAlpha (0.6f));
+                g.setColour (juce::Colours::black.withAlpha (0.55f));
                 g.setFont (juce::FontOptions (r.getHeight() * 0.25f));
                 g.drawText (c.name, r.reduced (6.0f), juce::Justification::topLeft);
                 break;
