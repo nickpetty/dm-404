@@ -156,6 +156,11 @@ private:
 
     void timerCallback() override
     {
+        // After 10 s without running dry, give latency back: the cushion
+        // shrinks by 6 ms a second towards 60 ms (it grows while booting,
+        // when the emulator is busy loading samples).
+        if (juce::Time::getMillisecondCounter() - lastUnderrunMs.load() > 10000 && cushion.load() > 2880.0)
+            cushion = juce::jmax (2880.0, cushion.load() - 4.8);
         if (link.getScreenCount() != lastScreen)
         {
             lastScreen = link.getScreenCount();
@@ -254,6 +259,7 @@ private:
             {
                 ++underruns;
                 cushion = juce::jmin (9600.0, cushion.load() + 960.0);
+                lastUnderrunMs = juce::Time::getMillisecondCounter();
             }
             primed = false;
             return;
@@ -306,6 +312,7 @@ private:
     bool primed = false;
     std::atomic<int> underruns { 0 }, skips { 0 }, lateCallbacks { 0 };
     std::atomic<double> cushion { 2880.0 };     // frames at 48 kHz
+    std::atomic<juce::uint32> lastUnderrunMs { 0 };
     uint32_t lastScreen = 0;
 };
 
