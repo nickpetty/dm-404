@@ -462,6 +462,22 @@ void PanelComponent::paint (juce::Graphics& g)
     }
 }
 
+juce::String PanelComponent::getTooltip()
+{
+    auto* c = hit (getMouseXYRelative().toFloat());
+    if (c == nullptr)
+        return {};
+    if (c->name == "SHIFT")
+        return "Click to hold, or hold the Shift key";
+    if (c->name == "VALUE")
+        return "Drag or scroll to turn, click to push";
+    if (c->type == PanelControl::Type::knob)
+        return "Drag or scroll to turn";
+    if (c->type == PanelControl::Type::button)
+        return c->latched ? "Held: click to release" : "Ctrl-click to hold";
+    return {};
+}
+
 PanelControl* PanelComponent::hit (juce::Point<float> p)
 {
     for (auto& c : controls)

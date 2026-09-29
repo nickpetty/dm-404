@@ -346,6 +346,7 @@ private:
     PanelComponent panel;
     DebugPanel debug;
     juce::Label status;
+    juce::TooltipWindow tooltips { this, 600 };
     juce::AudioDeviceManager audio;
     std::unique_ptr<juce::PropertiesFile> settings;
     juce::TextButton audioButton { "Audio settings..." };

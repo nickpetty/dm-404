@@ -46,9 +46,13 @@ private:
 };
 
 class PanelComponent : public juce::Component,
+                       public juce::TooltipClient,
                        private juce::Timer
 {
 public:
+    // Hover tips on how to hold a key or turn VALUE with the mouse.
+    juce::String getTooltip() override;
+
     explicit PanelComponent (EmulatorLink& link);
 
     void paint (juce::Graphics&) override;

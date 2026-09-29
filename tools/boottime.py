@@ -37,11 +37,13 @@ def main():
     src = os.environ.get('BOOT_QEMU') or os.path.join(ROOT, 'build', 'qemu', 'qemu-system-arm.exe')
     open(exe, 'wb').write(open(src, 'rb').read())
     t0 = time.time()
-    q = subprocess.Popen([exe, '-M', 'sp404mk2,flash=%s,link=link' % os.path.join(ROOT, 'build', 'flash.bin'),
+    # BOOT_EMMC / BOOT_FLASH: other images (e.g. blank ones, for a first run).
+    emmc = os.environ.get('BOOT_EMMC') or os.path.join(ROOT, 'build', 'emmc.img')
+    flash = os.environ.get('BOOT_FLASH') or os.path.join(ROOT, 'build', 'flash.bin')
+    q = subprocess.Popen([exe, '-M', 'sp404mk2,flash=%s,link=link' % flash,
                           '-bios', os.path.join(ROOT, 'firmware', 'SP404MKII_APP1.bin'),
                           '-chardev', 'socket,id=link,host=127.0.0.1,port=%d,server=on,wait=on' % port,
-                          '-drive', 'if=sd,index=1,format=raw,snapshot=on,file=' +
-                          os.path.join(ROOT, 'build', 'emmc.img'),
+                          '-drive', 'if=sd,index=1,format=raw,snapshot=on,file=' + emmc,
                           '-nographic', '-monitor', 'none', '-serial', 'none'] + extra,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
@@ -71,6 +73,7 @@ def main():
                 print('%6.2fs   cpu %.0f%%' % (now, (c - last_cpu) * 100))
                 last_cpu = c
                 next_tick += 1.0
+        lk.shot('bootlast')
     finally:
         q.kill()
 
