@@ -67,7 +67,8 @@ public:
     // shows: 0 lit (a key, a playing pad), 1 the resting level (0x1f: the
     // backlight; pads: a dim colour), 6 blinking between that value and the
     // resting one (the current pad and option keys in START/END, BUS FX
-    // while choosing, the pads in pattern select).
+    // while choosing, the pads in pattern select), 9 lit as well (MARK once
+    // skip back has something). Other pages are taken as lit.
     void setLedState (int page, int index, int value);
 
     // SHIFT: a click latches it (the firmware sees it held until the next

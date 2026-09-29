@@ -7,7 +7,8 @@
  *   and 14, right sums 1, 3, 5, 7, 12 and 15, each at unity. Word 13 is a
  *   bitmask of buses in use, not audio.
  * - The receiver gets back, on RX line 0 words 0 and 1, the sum of TX line
- *   3 words 0-7 (even to the left, odd to the right): the resampling path.
+ *   3 words 0-7 (even to the left, odd to the right), at unity: the
+ *   resampling path, which skip back sampling records too.
  *   The unit's inputs (from the frontend) are mixed in there. RX slots are
  *   read as 16-bit samples (RCR5 puts the first bit at bit 15, and the
  *   firmware's DMA reads RDR 16 bits at a time).
@@ -58,6 +59,11 @@ static int16_t clip16(int32_t v20)
     return v > INT16_MAX ? INT16_MAX : v < INT16_MIN ? INT16_MIN : v;
 }
 
+static int16_t sat16(int32_t v)
+{
+    return v > INT16_MAX ? INT16_MAX : v < INT16_MIN ? INT16_MIN : v;
+}
+
 static void sp404_audio_frame(void *opaque,
                               uint32_t tx[4][IMXRT_SAI_MAX_WORDS],
                               unsigned tx_words,
@@ -96,6 +102,9 @@ static void sp404_audio_frame(void *opaque,
                 SP404_TRACE("audio", "line %d peaks:%s", ln, line);
             }
         }
+        SP404_TRACE("audio", "rx words 0/1 peaks: %d %d (%u words)",
+                    a->rx_peak[0], a->rx_peak[1], rx_words);
+        a->rx_peak[0] = a->rx_peak[1] = 0;
         memset(a->slot_peak, 0, sizeof(a->slot_peak));
         a->peak_frames = 0;
     }
@@ -106,8 +115,14 @@ static void sp404_audio_frame(void *opaque,
     l = loop_l + sext20(w[12]) + sext20(w[14]);
     r = loop_r + sext20(w[12]) + sext20(w[15]);
     if (rx_words >= 2) {
-        rx[0][0] = (uint16_t)clip16(loop_l);
-        rx[0][1] = (uint16_t)clip16(loop_r);
+        /*
+         * At unity: the firmware writes 16-bit samples into the 20-bit
+         * slots, and what comes back must match them, or resampling
+         * records 24 dB down and skip back never sees its trigger level
+         * (0x40c at 0x80bcf238, which any pad reaches on the unit).
+         */
+        rx[0][0] = (uint16_t)sat16(loop_l);
+        rx[0][1] = (uint16_t)sat16(loop_r);
     }
     if (a->in_count && a->in_slot + 1 < (int)rx_words) {
         int16_t il = a->in_ring[a->in_head * 2], ir = a->in_ring[a->in_head * 2 + 1];
@@ -118,6 +133,12 @@ static void sp404_audio_frame(void *opaque,
         rx[0][a->in_slot + 1] = (uint16_t)(sr > INT16_MAX ? INT16_MAX : sr < INT16_MIN ? INT16_MIN : sr);
         a->in_head = (a->in_head + 1) % 16384;
         a->in_count--;
+    }
+    for (int i = 0; i < 2 && i < (int)rx_words; i++) {
+        int v = abs((int16_t)rx[0][i]);
+        if (v > a->rx_peak[i]) {
+            a->rx_peak[i] = v;
+        }
     }
     lr[0] = clip16(l);
     lr[1] = clip16(r);

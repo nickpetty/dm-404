@@ -70,14 +70,21 @@ SHIFT (key 0x2A) held/released. LEDs go out as 01 00 idx value: idx 0-0x2f
 pad RGB triplets (pad n at 3(n-1)), 0x30-0x52 button LEDs. Page 1
 (01 01 idx value) writes the same LEDs and the latest write on either page
 wins: keys and playing pads are lit on page 0 and dimmed back on page 1
-(0x1f is the backlight level; a pad whose sample ends gets a dim colour) Page 6
+(0x1f is the backlight level; a pad whose sample ends gets a dim colour). Page 6
 blinks the LED between the given value and its page-0/1 one (START/END's
 option keys and current pad, BUS FX while choosing, pattern-select pads);
-a later page-0/1 write stops it. Mode changes also send a Roland DT1 SysEx
+a later page-0/1 write stops it. Page 9 lights too (MARK, once skip back
+has triggered data). Mode changes also send a Roland DT1 SysEx
 (F0 41 10 00 00 00 00 08 12 02 02 00 00 ...), apparently the tempo (00 03 07 00 = 88.0).
 
 Inputs: the frontend streams the audio device's input over the link; it is
 mixed into SAI RX line 0 words 0/1, where sampling and the REC meter read.
+The same words carry the resampling loopback (TX line 3 words 0-7, at
+unity: 16-bit samples in 20-bit slots). Skip back sampling (MARK) records
+them too: the audio task (FUN_0001ca80) feeds the recorder at 0x82fe4f08
+(pointer at 0x82e0e970), whose ring only starts keeping audio once a
+sample reaches the threshold at 0x80bcf238 (0x40c); until then MARK says
+"No SKIP BACK Triggered Data".
 
 Firmware facts worth knowing: 94 UI pages, handler table 0x8023b4fc; the
 current page ID is at 0x80245880 (page

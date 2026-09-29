@@ -17,7 +17,7 @@ public:
         link.onBmcPacket = [this] (const uint8_t* p)
         {
             debug.logBmc (p);
-            if ((p[0] & 0x0f) == 1 && (p[1] <= 0x01 || p[1] == 0x06))
+            if ((p[0] & 0x0f) == 1 && p[1] < 0x10)
             {
                 const int page = p[1], idx = p[2], value = p[3];
                 juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<PanelComponent> (&panel), page, idx, value]

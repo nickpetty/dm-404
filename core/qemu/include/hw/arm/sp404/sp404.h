@@ -351,6 +351,7 @@ typedef struct SP404Audio {
     uint64_t wav_frames;
     int32_t slot_peak[4][16];
     int peak_frames;
+    int rx_peak[2];
     /* Stereo output, for the frontend link. */
     void (*out)(void *opaque, const int16_t *lr, int frames);
     void *out_opaque;
