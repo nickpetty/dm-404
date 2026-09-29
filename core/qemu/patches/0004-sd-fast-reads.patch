@@ -1,0 +1,118 @@
+diff --git a/hw/sd/sd.c b/hw/sd/sd.c
+index 780e9f6..a8bf1e7 100644
+--- a/hw/sd/sd.c
++++ b/hw/sd/sd.c
+@@ -196,6 +196,14 @@ struct SDState {
+     uint32_t data_offset;
+     size_t data_size;
+     uint8_t data[512];
++    /*
++     * Read-ahead: the backing image is read in chunks and blocks served from
++     * here. Block-by-block reads through the block layer ran at a few MB/s.
++     * Any write drops it. Offsets are in the image (partition included).
++     */
++    uint8_t *rcache;
++    uint64_t rcache_addr;
++    uint32_t rcache_len;
+     struct {
+         uint32_t write_counter;
+         uint8_t key[RPMB_KEY_MAC_LEN];
+@@ -1113,10 +1121,37 @@ static const VMStateDescription sd_vmstate = {
+     },
+ };
+ 
++#define SD_RCACHE_SIZE (256 * KiB)
++
+ static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
+ {
+     trace_sdcard_read_block(addr, len);
+     addr += sd_part_offset(sd);
++    if (sd->blk && len <= SD_RCACHE_SIZE) {
++        if (!(sd->rcache_len && addr >= sd->rcache_addr &&
++              addr + len <= sd->rcache_addr + sd->rcache_len)) {
++            int64_t size = blk_getlength(sd->blk);
++            uint64_t start = QEMU_ALIGN_DOWN(addr, 512);
++            uint64_t n = SD_RCACHE_SIZE;
++
++            if (!sd->rcache) {
++                sd->rcache = g_malloc(SD_RCACHE_SIZE);
++            }
++            if (size > 0 && start + n > (uint64_t)size) {
++                n = (uint64_t)size > start ? size - start : 0;
++            }
++            sd->rcache_len = 0;
++            if (n < addr - start + len ||
++                blk_pread(sd->blk, start, n, sd->rcache, 0) < 0) {
++                goto direct;
++            }
++            sd->rcache_addr = start;
++            sd->rcache_len = n;
++        }
++        memcpy(sd->data, sd->rcache + (addr - sd->rcache_addr), len);
++        return;
++    }
++direct:
+     if (!sd->blk || blk_pread(sd->blk, addr, len, sd->data, 0) < 0) {
+         fprintf(stderr, "sd_blk_read: read error on host side\n");
+     }
+@@ -1125,6 +1160,7 @@ static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
+ static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
+ {
+     trace_sdcard_write_block(addr, len);
++    sd->rcache_len = 0;
+     addr += sd_part_offset(sd);
+     if (!sd->blk || blk_pwrite(sd->blk, addr, len, sd->data, 0) < 0) {
+         fprintf(stderr, "sd_blk_write: write error on host side\n");
+@@ -1292,6 +1328,7 @@ static void emmc_rpmb_blk_write(SDState *sd, uint64_t addr, uint32_t len)
+         }
+         sd->rpmb.result.address = frame->address;
+         addr = lduw_be_p(&frame->address) * RPMB_DATA_LEN + sd_part_offset(sd);
++        sd->rcache_len = 0;
+         if (blk_pwrite(sd->blk, addr, RPMB_DATA_LEN, frame->data, 0) < 0) {
+             error_report("sd_blk_write: write error on host side");
+             stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_WRITE_FAILURE);
+@@ -2852,10 +2889,11 @@ static size_t sd_read_data(SDState *sd, void *buf, size_t length)
+ 
+     case 18:  /* CMD18:  READ_MULTIPLE_BLOCK */
+         /*
+-         * We will only read one byte at a time. We will be called again with
+-         * the remaining buffer.
++         * Up to the end of the current block at a time; we will be called
++         * again with the remaining buffer. (Byte by byte, a 64 KiB transfer
++         * took milliseconds.)
+          */
+-        length = 1;
++        length = MIN(length, io_len - sd->data_offset);
+ 
+         if (sd->data_offset == 0) {
+             if (!address_in_range(sd, "READ_MULTIPLE_BLOCK",
+@@ -2871,7 +2909,8 @@ static size_t sd_read_data(SDState *sd, void *buf, size_t length)
+                 sd_blk_read(sd, sd->data_start, io_len);
+             }
+         }
+-        *value = sd->data[sd->data_offset++];
++        memcpy(value, sd->data + sd->data_offset, length);
++        sd->data_offset += length;
+ 
+         if (sd->data_offset >= io_len) {
+             sd->data_start += io_len;
+diff --git a/hw/sd/sdhci-internal.h b/hw/sd/sdhci-internal.h
+index 4aeed12..c51cf36 100644
+--- a/hw/sd/sdhci-internal.h
++++ b/hw/sd/sdhci-internal.h
+@@ -276,7 +276,14 @@ FIELD(SDHC_MAXCURR, V18_VDD2,         32, 8); /* since v4.20 */
+ #define SDHC_REGISTERS_MAP_SIZE         0x100
+ #define SDHC_INSERTION_DELAY            (NANOSECONDS_PER_SECOND)
+ #define SDHC_TRANSFER_DELAY             100
+-#define SDHC_ADMA_DESCS_PER_DELAY       5
++/*
++ * Descriptors handled before the rest of an ADMA transfer is deferred to
++ * the transfer timer. The deferral costs a main-loop wakeup, a millisecond
++ * or more on Windows: with drivers that describe 4 KiB in 512-byte
++ * descriptors (NXP's MCUXpresso SDK) every read paid it. Transfers are
++ * copies within guest RAM; finish them at once.
++ */
++#define SDHC_ADMA_DESCS_PER_DELAY       1024
+ #define SDHC_CMD_RESPONSE               (3 << 0)
+ 
+ enum {

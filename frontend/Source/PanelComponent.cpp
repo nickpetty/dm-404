@@ -95,7 +95,7 @@ void OledView::paint (juce::Graphics& g)
 //==============================================================================
 PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
 {
-    startTimer (250);       // the LED blink rate, about 2 Hz
+    startTimer (33);        // LED animation: blinks and pulses, ~30 fps
     using T = PanelControl::Type;
     auto add = [this] (juce::String name, T type, float x, float y, float w, float h)
     {
@@ -229,25 +229,42 @@ void PanelComponent::setLedState (int page, int index, int value)
     if (index < 0 || index >= (int) leds.size())
         return;
     const auto i = (size_t) index;
-    if (page == 6)
+    if (page == 4 || page == 5)
+        return;
+    if (page == 6 || page == 7 || page == 9)
     {
-        // Blinks between this and the value it had.
-        blinking[i] = true;
-        blinkValue[i] = (uint8_t) value;
+        // Swings between this and the value it had.
+        ledMode[i] = page == 6 ? LedMode::blink : page == 9 ? LedMode::pulseSlow : LedMode::pulseFast;
+        animValue[i] = (uint8_t) value;
     }
     else
     {
-        blinking[i] = false;
+        ledMode[i] = LedMode::steady;
         leds[i] = (uint8_t) value;
     }
     repaint();
 }
 
+uint8_t PanelComponent::shown (int idx) const
+{
+    const auto i = (size_t) idx;
+    const float from = leds[i], to = animValue[i];
+    float w = 0.0f;
+    switch (ledMode[i])
+    {
+        case LedMode::steady: return leds[i];
+        case LedMode::blink: w = std::fmod (animTime * 2.0, 1.0) < 0.5 ? 1.0f : 0.0f; break;            // 2 Hz
+        case LedMode::pulseSlow: w = 0.5f - 0.5f * (float) std::cos (animTime * juce::MathConstants<double>::twoPi * 0.5); break;
+        case LedMode::pulseFast: w = 0.5f - 0.5f * (float) std::cos (animTime * juce::MathConstants<double>::twoPi * 1.5); break;
+    }
+    return (uint8_t) juce::roundToInt (from + (to - from) * w);
+}
+
 void PanelComponent::timerCallback()
 {
-    blinkPhase = ! blinkPhase;
-    for (auto b : blinking)
-        if (b)
+    animTime += getTimerInterval() / 1000.0;
+    for (auto m : ledMode)
+        if (m != LedMode::steady)
         {
             repaint();
             break;
@@ -347,24 +364,32 @@ void PanelComponent::paint (juce::Graphics& g)
             }
             case PanelControl::Type::pad:
             {
-                g.setColour (c.pressed ? juce::Colour (0xff5b5e66) : juce::Colour (0xff3b3d44));
+                // A solid pad; its LED colours the inner border, the number
+                // and the legend (dim grey while the LED is off).
+                g.setColour (c.pressed ? juce::Colour (0xff4a4d55) : juce::Colour (0xff2c2e33));
                 g.fillRoundedRectangle (r, 5.0f);
+                g.setColour (juce::Colour (0xff55585f));
+                g.drawRoundedRectangle (r.reduced (1.0f), 5.0f, 1.5f);
+                auto ledColour = juce::Colour (0xff6a6d75);
                 const int base = (c.name.getIntValue() - 1) * 3;
                 if (base >= 0 && base + 2 < 0x30)
                 {
                     const auto rgb = juce::Colour (shown (base), shown (base + 1), shown (base + 2));
                     if (rgb.getBrightness() > 0.0f)
                     {
-                        // The pad's LEDs light it from inside.
-                        g.setColour (rgb.withAlpha (0.9f));
-                        g.fillRoundedRectangle (r.reduced (2.0f), 5.0f);
+                        // Brightness maps onto 0.45..1 so the resting (dim)
+                        // colour stays readable and a lit pad still stands out.
+                        const float peak = juce::jmax (rgb.getFloatRed(), rgb.getFloatGreen(), rgb.getFloatBlue());
+                        const float lift = (0.45f + 0.55f * peak) / juce::jmax (peak, 0.01f);
+                        ledColour = juce::Colour::fromFloatRGBA (juce::jmin (1.0f, rgb.getFloatRed() * lift),
+                                                                 juce::jmin (1.0f, rgb.getFloatGreen() * lift),
+                                                                 juce::jmin (1.0f, rgb.getFloatBlue() * lift), 1.0f);
                     }
                 }
-                g.setColour (juce::Colour (0xff55585f));
-                g.drawRoundedRectangle (r.reduced (1.0f), 5.0f, 1.5f);
+                g.setColour (ledColour);
+                g.drawRoundedRectangle (r.reduced (r.getWidth() * 0.07f), 4.0f, juce::jmax (1.5f, r.getWidth() * 0.035f));
                 // The number top right and the DJ-mode legend in a box, as
                 // printed on the unit's pads.
-                g.setColour (juce::Colour (0xffffa53a));
                 g.setFont (juce::FontOptions (r.getHeight() * 0.3f, juce::Font::bold));
                 g.drawText (c.name, r.reduced (r.getWidth() * 0.1f, r.getHeight() * 0.06f), juce::Justification::topRight);
                 if (c.legend.isNotEmpty())

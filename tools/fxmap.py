@@ -16,6 +16,7 @@ DT1 SysEx writes it caused, decoded as "addr(4) <- data". ACTIONs:
     shot:NAME         OLED screenshot to build/logs/NAME.png
     label:TEXT        print TEXT (to annotate the output)
 
+FXMAP_LEDS=1 also prints LED writes on pages other than 0/1 (blink, pulse).
 FXMAP_LOG=FILE keeps the emulator's log (with SP404_TRACE=audio: per-slot
 levels once a second). -o FILE also writes the boot-time dump (all writes before the first action).
 Every write is "F0 41 10 00 00 00 00 08 12 a a a a d.. sum F7".
@@ -82,6 +83,12 @@ def main():
             with lk.lock:
                 pk = list(lk.bmc)
                 lk.bmc.clear()
+            if os.environ.get('FXMAP_LEDS'):
+                # LED writes "01 page idx value", except the plain pages 0/1.
+                leds = ['p%d:%s=%s' % (int(p[2:4], 16), p[4:6], p[6:8]) for p in pk
+                        if p[1] == '1' and int(p[2:4], 16) < 0x10 and p[2:4] not in ('00', '01')]
+                if leds:
+                    print('   leds: ' + ' '.join(leds[:40]))
             return sysex(pk)
 
         boot = take()

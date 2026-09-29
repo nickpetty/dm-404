@@ -58,6 +58,11 @@ re-armed, task 1's TCB state back to WAIT; up to 5 ms), and it runs on its
 own host thread with high-resolution sleeps (QEMU timers on Windows wake
 only every millisecond or so, and those waits added up to seconds of lag).
 Projects exceed the 64 MB SDRAM and stream from the eMMC while playing.
+Boot reads ~22 MB of them: patch 0004 makes QEMU's card read multi-block
+transfers a block at a time (not byte by byte) through a 256 KiB read-ahead,
+which took the main screen from ~11 s to ~6 s; most of the rest is the
+firmware's own waits (a kernel tick between its two CMD13 polls per read,
+as on the unit). `python tools/boottime.py` times the screens and CPU use.
 
 VOLUME is an analog pot after the DAC: the firmware never reads it, the
 frontend applies it as output gain. Audio: pads play into TX line 3 slots
@@ -75,8 +80,9 @@ wins: keys and playing pads are lit on page 0 and dimmed back on page 1
 (0x1f is the backlight level; a pad whose sample ends gets a dim colour). Page 6
 blinks the LED between the given value and its page-0/1 one (START/END's
 option keys and current pad, BUS FX while choosing, pattern-select pads);
-a later page-0/1 write stops it. Page 9 lights too (MARK, once skip back
-has triggered data). Mode changes also send a Roland DT1 SysEx
+a later page-0/1 write stops it. Page 9 pulses slowly (MARK, once skip
+back has triggered data), page 7 pulses too; pages 4 and 5 come once at
+boot (idx 0 = cc) and are not LEDs. Mode changes also send a Roland DT1 SysEx
 (F0 41 10 00 00 00 00 08 12 02 02 00 00 ...), apparently the tempo (00 03 07 00 = 88.0).
 
 Effects are not computed by the i.MX: the TX lines carry dry buses

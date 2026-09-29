@@ -17,6 +17,14 @@ float MidiHz(float note)
 constexpr int kChords[8][4] = {{0, 4, 7, 12}, {0, 3, 7, 12}, {0, 4, 7, 10}, {0, 3, 7, 10},
                                {0, 4, 7, 11}, {0, 5, 7, 12}, {0, 7, 12, 19}, {0, 12, 24, 0}};
 
+// Input gain for four combs at feedback fb so that together they ring at
+// about the level of what goes in: a comb's power gain is 1 / (1 - fb^2),
+// four uncorrelated ones add 4x, and the damping takes some back.
+float CombGain(float fb)
+{
+    return std::sqrt(std::fmax(1.f - fb * fb, 1e-4f)) * 0.5f * 3.2f;
+}
+
 // A tuned feedback comb with a damping filter: one resonator voice.
 class Comb
 {
@@ -64,16 +72,20 @@ class Resonator : public Effect
         using namespace fxp::fx12;
         const float a = std::fabs(l) + std::fabs(r);
         env_ += (a > env_ ? 0.01f : 0.0003f) * (a - env_);
-        const float fb = Clamp(0.8f + N(FEEDBACK) * 0.195f + env_ * N(ENV_MOD) * 0.1f, 0.f, 0.998f);
+        const float fb = Clamp(0.9f + N(FEEDBACK) * 0.098f + env_ * N(ENV_MOD) * 0.05f, 0.f, 0.998f);
+        const float g  = CombGain(fb);
         float       wl = 0.f, wr = 0.f;
         for(int v = 0; v < 4; v++)
         {
             c_[0][v].fb = c_[1][v].fb = fb;
-            wl += c_[0][v].Process(l * 0.1f);
-            wr += c_[1][v].Process(r * 0.1f);
+            wl += c_[0][v].Process(l * g);
+            wr += c_[1][v].Process(r * g);
         }
         lowcut_.Process(wl, wr);
-        const float bal = p_[BALANCE] ? N(BALANCE) : 0.5f;
+        wl = SoftClip(wl), wr = SoftClip(wr);
+        // BALANCE is not among what the firmware sends: mostly wet, as the
+        // unit's resonator rings over the dry sound.
+        const float bal = p_[BALANCE] ? N(BALANCE) : 0.85f;
         l = Mix(l, wl, bal), r = Mix(r, wr, bal);
     }
 };
@@ -112,15 +124,17 @@ class HyperReso : public Effect
         const float fb = Clamp(0.9f + (p_[FEEDBACK] ? N(FEEDBACK) : 0.5f) * 0.095f
                                    + env_ * N(ENV_MOD) * 0.05f,
                                0.f, 0.998f);
-        float wl = 0.f, wr = 0.f;
+        const float g = CombGain(fb);
+        float       wl = 0.f, wr = 0.f;
         for(int v = 0; v < 4; v++)
         {
             c_[0][v].fb = c_[1][v].fb = fb;
-            wl += c_[0][v].Process(l * 0.08f);
-            wr += c_[1][v].Process(r * 0.08f);
+            wl += c_[0][v].Process(l * g);
+            wr += c_[1][v].Process(r * g);
         }
         lowcut_.Process(wl, wr);
-        const float bal = p_[BALANCE] ? N(BALANCE) : 0.5f;
+        wl = SoftClip(wl), wr = SoftClip(wr);
+        const float bal = p_[BALANCE] ? N(BALANCE) : 0.85f;
         l = Mix(l, wl, bal), r = Mix(r, wr, bal);
     }
 };

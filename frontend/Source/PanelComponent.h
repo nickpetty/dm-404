@@ -67,8 +67,9 @@ public:
     // shows: 0 lit (a key, a playing pad), 1 the resting level (0x1f: the
     // backlight; pads: a dim colour), 6 blinking between that value and the
     // resting one (the current pad and option keys in START/END, BUS FX
-    // while choosing, the pads in pattern select), 9 lit as well (MARK once
-    // skip back has something). Other pages are taken as lit.
+    // while choosing, the pads in pattern select), 9 pulsing slowly (MARK
+    // once skip back has something), 7 pulsing faster. Pages 4 and 5 come
+    // once at boot and are not LEDs (ignored); others are taken as lit.
     void setLedState (int page, int index, int value);
 
     // SHIFT: a click latches it (the firmware sees it held until the next
@@ -101,13 +102,12 @@ private:
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":
     // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.
     std::array<uint8_t, 128> leds {};
-    // Blinking LEDs (page 6): the value they blink to, and the blink phase.
-    std::array<uint8_t, 128> blinkValue {};
-    std::array<bool, 128> blinking {};
-    bool blinkPhase = false;
-    uint8_t shown (int idx) const
-    {
-        return blinking[(size_t) idx] && blinkPhase ? blinkValue[(size_t) idx] : leds[(size_t) idx];
-    }
+    // Animated LEDs: how (page 6 blink, 9 slow pulse, 7 fast pulse) and the
+    // value they swing to from their resting one.
+    enum class LedMode : uint8_t { steady, blink, pulseSlow, pulseFast };
+    std::array<uint8_t, 128> animValue {};
+    std::array<LedMode, 128> ledMode {};
+    double animTime = 0.0;          // seconds, advanced by the timer
+    uint8_t shown (int idx) const;
     void timerCallback() override;
 };

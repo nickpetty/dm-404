@@ -695,7 +695,10 @@ static void sp404_init(MachineState *machine)
     m->sai[0].ready_opaque = m;
     m->edma.int_cleared = sp404_audio_dma_serviced;
     m->edma.int_cleared_opaque = m;
-    imxrt_sai_start_precise_clock(&m->sai[0]);
+    /* SP404_SAI_CLOCK=timer: QEMU's own timers instead (coarser, for tests). */
+    if (!getenv("SP404_SAI_CLOCK") || strcmp(getenv("SP404_SAI_CLOCK"), "timer")) {
+        imxrt_sai_start_precise_clock(&m->sai[0]);
+    }
 
     object_initialize_child(OBJECT(machine), "pit", &m->pit, TYPE_IMXRT_PIT);
     sysbus_realize(SYS_BUS_DEVICE(&m->pit), &error_fatal);
