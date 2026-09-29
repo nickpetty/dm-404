@@ -1,0 +1,24 @@
+diff --git a/hw/sd/sdhci.c b/hw/sd/sdhci.c
+index a612e5c..1763ae7 100644
+--- a/hw/sd/sdhci.c
++++ b/hw/sd/sdhci.c
+@@ -1686,11 +1686,18 @@ static uint64_t esdhc_read(void *opaque, hwaddr offset, unsigned size)
+     case ESDHC_VENDOR_SPEC:
+         ret = s->vendor_spec;
+         break;
++    case ESDHC_MIX_CTRL:
++        /*
++         * The transfer mode bits live here on uSDHC; drivers that update
++         * them read-modify-write (NXP's MCUXpresso SDK does) need them back.
++         */
++        ret = s->trnmod;
++        break;
++
+     case ESDHC_DLL_CTRL:
+     case ESDHC_TUNE_CTRL_STATUS:
+     case ESDHC_UNDOCUMENTED_REG27:
+     case ESDHC_TUNING_CTRL:
+-    case ESDHC_MIX_CTRL:
+     case ESDHC_WTMK_LVL:
+         ret = 0;
+         break;

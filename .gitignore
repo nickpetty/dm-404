@@ -1,0 +1,11 @@
+# Roland firmware: never commit
+firmware/*
+!firmware/README.md
+
+# Pinned QEMU clone (tools/qemu_sync.sh recreates it) and all build output
+third_party/
+build/
+__pycache__/
+
+# Your exported SP-404MKII projects and disk images: personal data, not code
+media/

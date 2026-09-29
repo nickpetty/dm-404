@@ -1,0 +1,28 @@
+diff --git a/hw/arm/Kconfig b/hw/arm/Kconfig
+index 6f5b2ad..37b4d4e 100644
+--- a/hw/arm/Kconfig
++++ b/hw/arm/Kconfig
+@@ -727,3 +727,12 @@ config ARMSSE
+     select UNIMP
+     select SSE_COUNTER
+     select SSE_TIMER
++
++config SP404MK2
++    bool
++    default y
++    depends on TCG && ARM
++    select ARM_V7M
++    select SSI
++    select SDHCI
++    select SD
+diff --git a/hw/arm/meson.build b/hw/arm/meson.build
+index 4233a80..ada875f 100644
+--- a/hw/arm/meson.build
++++ b/hw/arm/meson.build
+@@ -112,4 +112,6 @@ arm_common_ss.add(when: 'CONFIG_VEXPRESS', if_true: files('vexpress.c'))
+ 
+ arm_common_ss.add(files('boot.c'))
+ 
++subdir('sp404')
++
+ hw_common_arch += {'arm': arm_common_ss}

@@ -1,0 +1,16 @@
+arm_common_ss.add(when: 'CONFIG_SP404MK2', if_true: files(
+  'sp404mk2.c',
+  'sp404-regstub.c',
+  'imxrt-flexspi.c',
+  'imxrt-gpio.c',
+  'imxrt-edma.c',
+  'imxrt-lpspi.c',
+  'imxrt-lpuart.c',
+  'sp404-bmc.c',
+  'ssd1309.c',
+  'imxrt-sai.c',
+  'sp404-audio.c',
+  'imxrt-pit.c',
+  'imxrt-xbar.c',
+  'imxrt-adc.c',
+))
