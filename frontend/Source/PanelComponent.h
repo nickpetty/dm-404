@@ -44,7 +44,8 @@ private:
     EmulatorLink::Screen screen {};
 };
 
-class PanelComponent : public juce::Component
+class PanelComponent : public juce::Component,
+                       private juce::Timer
 {
 public:
     explicit PanelComponent (EmulatorLink& link);
@@ -61,15 +62,20 @@ public:
     PanelControl* getLearning() { return learning; }
     void learn (const Binding&);
 
-    // An LED packet from the firmware: "01 page idx value". Both pages set
-    // the LED's level and the latest write wins: the firmware lights a key
-    // or a playing pad on page 0 and dims it back (0x1f: the backlight
-    // level; pads: a dim colour) on page 1.
+    // An LED packet from the firmware: "01 page idx value". Every page
+    // writes the same LED and the latest write wins; the page is how it
+    // shows: 0 lit (a key, a playing pad), 1 the resting level (0x1f: the
+    // backlight; pads: a dim colour), 6 blinking between that value and the
+    // resting one (the current pad and option keys in START/END, BUS FX
+    // while choosing, the pads in pattern select).
     void setLedState (int page, int index, int value);
 
     // SHIFT: a click latches it (the firmware sees it held until the next
     // click); the computer's Shift key holds it for as long as it is down.
     void setShiftFromKeyboard (bool down);
+
+    // Tap a control by its printed name (for scripted tests).
+    void tap (const juce::String& name);
 
     static juce::File bindingsFile();
     void loadBindings();
@@ -94,4 +100,13 @@ private:
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":
     // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.
     std::array<uint8_t, 128> leds {};
+    // Blinking LEDs (page 6): the value they blink to, and the blink phase.
+    std::array<uint8_t, 128> blinkValue {};
+    std::array<bool, 128> blinking {};
+    bool blinkPhase = false;
+    uint8_t shown (int idx) const
+    {
+        return blinking[(size_t) idx] && blinkPhase ? blinkValue[(size_t) idx] : leds[(size_t) idx];
+    }
+    void timerCallback() override;
 };

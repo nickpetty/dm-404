@@ -17,7 +17,7 @@ public:
         link.onBmcPacket = [this] (const uint8_t* p)
         {
             debug.logBmc (p);
-            if ((p[0] & 0x0f) == 1 && p[1] <= 0x01)
+            if ((p[0] & 0x0f) == 1 && (p[1] <= 0x01 || p[1] == 0x06))
             {
                 const int page = p[1], idx = p[2], value = p[3];
                 juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<PanelComponent> (&panel), page, idx, value]
@@ -79,6 +79,8 @@ public:
     }
 
 public:
+    PanelComponent& getPanel() { return panel; }
+
     void modifierKeysChanged (const juce::ModifierKeys& mods) override
     {
         panel.setShiftFromKeyboard (mods.isShiftDown());
@@ -343,6 +345,18 @@ public:
             {
                 if (auto* mc = dynamic_cast<MainComponent*> (window->getContentComponent()))
                     mc->runAudioTest (out, [] {});
+            });
+        }
+        // --press NAME (repeatable): tap those panel controls 20 s in, one a
+        // second, before a --snapshot is taken.
+        for (int i = 0; (i = args.indexOf ("--press", false, i)) >= 0 && i + 1 < args.size(); i += 2)
+        {
+            const auto name = args[i + 1].unquoted();
+            const int n = i;
+            juce::Timer::callAfterDelay (20000 + 1000 * n, [this, name]
+            {
+                if (auto* mc = dynamic_cast<MainComponent*> (window->getContentComponent()))
+                    mc->getPanel().tap (name);
             });
         }
         if (const int i = args.indexOf ("--snapshot"); i >= 0 && i + 1 < args.size())

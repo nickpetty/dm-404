@@ -70,7 +70,11 @@ SHIFT (key 0x2A) held/released. LEDs go out as 01 00 idx value: idx 0-0x2f
 pad RGB triplets (pad n at 3(n-1)), 0x30-0x52 button LEDs. Page 1
 (01 01 idx value) writes the same LEDs and the latest write on either page
 wins: keys and playing pads are lit on page 0 and dimmed back on page 1
-(0x1f is the backlight level; a pad whose sample ends gets a dim colour).
+(0x1f is the backlight level; a pad whose sample ends gets a dim colour) Page 6
+blinks the LED between the given value and its page-0/1 one (START/END's
+option keys and current pad, BUS FX while choosing, pattern-select pads);
+a later page-0/1 write stops it. Mode changes also send a Roland DT1 SysEx
+(F0 41 10 00 00 00 00 08 12 02 02 00 00 ...), apparently the tempo (00 03 07 00 = 88.0).
 
 Inputs: the frontend streams the audio device's input over the link; it is
 mixed into SAI RX line 0 words 0/1, where sampling and the REC meter read.

@@ -95,6 +95,7 @@ void OledView::paint (juce::Graphics& g)
 //==============================================================================
 PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
 {
+    startTimer (250);       // the LED blink rate, about 2 Hz
     using T = PanelControl::Type;
     auto add = [this] (juce::String name, T type, float x, float y, float w, float h)
     {
@@ -225,12 +226,32 @@ void PanelComponent::learn (const Binding& b)
 
 void PanelComponent::setLedState (int page, int index, int value)
 {
-    juce::ignoreUnused (page);
-    if (index >= 0 && index < (int) leds.size() && leds[(size_t) index] != value)
+    if (index < 0 || index >= (int) leds.size())
+        return;
+    const auto i = (size_t) index;
+    if (page == 6)
     {
-        leds[(size_t) index] = (uint8_t) value;
-        repaint();
+        // Blinks between this and the value it had.
+        blinking[i] = true;
+        blinkValue[i] = (uint8_t) value;
     }
+    else
+    {
+        blinking[i] = false;
+        leds[i] = (uint8_t) value;
+    }
+    repaint();
+}
+
+void PanelComponent::timerCallback()
+{
+    blinkPhase = ! blinkPhase;
+    for (auto b : blinking)
+        if (b)
+        {
+            repaint();
+            break;
+        }
 }
 
 juce::Rectangle<float> PanelComponent::toScreen (juce::Rectangle<float> r) const
@@ -309,11 +330,11 @@ void PanelComponent::paint (juce::Graphics& g)
             {
                 g.setColour (c.pressed ? juce::Colour (0xff5b5e66) : juce::Colour (0xff34363c));
                 g.fillRoundedRectangle (r, 3.0f);
-                if (c.led >= 0 && leds[(size_t) c.led] != 0)
+                if (c.led >= 0 && shown (c.led) != 0)
                 {
                     // A lit button: its LED glows through the key, faintly
                     // at the backlight level, fully when active.
-                    const float level = leds[(size_t) c.led] / 255.0f;
+                    const float level = shown (c.led) / 255.0f;
                     const bool red = c.name == "REC" || c.name == "RESAMPLE" || c.name == "DEL";
                     g.setColour ((red ? juce::Colour (0xffff2a3a) : accent()).withAlpha (0.12f + 0.78f * level));
                     g.fillRoundedRectangle (r, 3.0f);
@@ -331,7 +352,7 @@ void PanelComponent::paint (juce::Graphics& g)
                 const int base = (c.name.getIntValue() - 1) * 3;
                 if (base >= 0 && base + 2 < 0x30)
                 {
-                    const auto rgb = juce::Colour (leds[(size_t) base], leds[(size_t) base + 1], leds[(size_t) base + 2]);
+                    const auto rgb = juce::Colour (shown (base), shown (base + 1), shown (base + 2));
                     if (rgb.getBrightness() > 0.0f)
                     {
                         // The pad's LEDs light it from inside.
@@ -435,6 +456,21 @@ void PanelComponent::updateShift()
             const bool held = shiftLatched || shiftKeyboard;
             if (held != c.pressed)
                 press (c, held);
+        }
+}
+
+void PanelComponent::tap (const juce::String& name)
+{
+    for (auto& c : controls)
+        if (c.name == name)
+        {
+            press (c, true);
+            juce::Timer::callAfterDelay (150, [this, name]
+            {
+                for (auto& c2 : controls)
+                    if (c2.name == name)
+                        press (c2, false);
+            });
         }
 }
 
