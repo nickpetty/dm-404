@@ -4,7 +4,7 @@
 // (a virtual device: other programs see it as a MIDI port, MIDI 1.0 ones
 // included). Kept apart from JUCE: plain bytes in and out.
 //
-// It needs the Windows MIDI Services App SDK, which Doom-404 does not ship:
+// It needs the Windows MIDI Services App SDK, which DM-404 does not ship:
 // either built into Windows (as it will be), or Windows.Devices.Midi2.dll
 // from Microsoft's release put in `dllDir` by the user. Otherwise state()
 // says failed, and why(). It is set up on a thread of its own; if the MIDI

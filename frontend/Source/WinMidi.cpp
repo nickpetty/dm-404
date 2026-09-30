@@ -27,7 +27,7 @@ struct WinMidiPortState
     }
 };
 
-#if ! DOOM404_WINMIDI
+#if ! DM404_WINMIDI
 
 struct WinMidiPort::Impl : WinMidiPortState
 {
@@ -261,7 +261,7 @@ struct WinMidiPort::Impl : WinMidiPortState, std::enable_shared_from_this<WinMid
 
         enumeration::MidiDeclaredEndpointInfo info;
         info.Name (name);
-        info.ProductInstanceId (L"doom-404");
+        info.ProductInstanceId (L"dm-404");
         info.HasStaticFunctionBlocks (true);
         info.SupportsMidi10Protocol (true);
         info.SupportsMidi20Protocol (false);
@@ -270,7 +270,7 @@ struct WinMidiPort::Impl : WinMidiPortState, std::enable_shared_from_this<WinMid
         info.SpecificationVersionMajor (1);
         info.SpecificationVersionMinor (1);
 
-        virt::MidiVirtualDeviceCreationConfig config (name, L"The Doom-404 emulator's USB MIDI", L"doom-404", info);
+        virt::MidiVirtualDeviceCreationConfig config (name, L"The DM-404 emulator's USB MIDI", L"dm-404", info);
         enumeration::MidiFunctionBlock block;
         block.Number (0);
         block.IsActive (true);

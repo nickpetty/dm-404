@@ -1,6 +1,6 @@
 #pragma once
 
-// The link between the Doom-404 app and its DAW plugin: a file both map
+// The link between the DM-404 app and its DAW plugin: a file both map
 // into memory (daw-link.shm in the data folder), holding lock-free rings.
 //
 //   toUnit    the DAW's audio into the unit (USB audio in): plugin writes,
@@ -86,7 +86,7 @@ namespace dawlink
 #else
         auto base = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
 #endif
-        return base.getChildFile ("Doom-404").getChildFile ("daw-link.shm");
+        return base.getChildFile ("DM-404").getChildFile ("daw-link.shm");
     }
 
     // The mapping. The app creates the file; the plugin only opens it.

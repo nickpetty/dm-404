@@ -1,4 +1,4 @@
-// Loads the Doom-404 Link VST3 as a DAW would and runs it in real time
+// Loads the DM-404 Link VST3 as a DAW would and runs it in real time
 // against the running app, at 44.1 kHz (so the rate conversion is in play),
 // feeding it a tone. Prints, each second, what the plugin says and the
 // level of what it returns.

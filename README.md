@@ -1,4 +1,4 @@
-# doom-404
+# dm-404
 
 An emulator of the Roland SP-404MKII sampler that runs **Roland's own
 firmware** (System Program 5.52) on an emulated NXP i.MX RT1060, in a fork of
@@ -6,7 +6,10 @@ QEMU, with a desktop app that looks and plays like the hardware and a DAW
 plugin that brings it into your sessions.
 
 An independent project: not affiliated with or endorsed by Roland (see
-[Licensing](#licensing)).
+[Licensing](#licensing)). It was called Doom-404 up to 0.1.1; the app moves
+that version's drives and settings over the first time it runs, and the
+plugin keeps its identity, so DAW projects still find it (delete the old
+`Doom-404 Link.vst3`).
 
 > **You need your own copy of Roland's firmware.** Nothing of Roland's is in
 > this repository or in anything built from it. The app asks for the System
@@ -35,10 +38,10 @@ An independent project: not affiliated with or endorsed by Roland (see
     (several inputs at once: a keyboard and a controller).
   - MIDI learn: right-click any key, pad or knob and move a control on your
     MIDI device to work it from there.
-  - A "Doom-404" MIDI port of the app's own: built in on macOS and Linux; on
+  - A "DM-404" MIDI port of the app's own: built in on macOS and Linux; on
     Windows it needs Windows MIDI Services (see below).
   - MIDI clock in and out; the unit follows tempo.
-- **DAW plugin (Doom-404 Link, VST3).** It puts the unit in a DAW track:
+- **DAW plugin (DM-404 Link, VST3).** It puts the unit in a DAW track:
   - The track's audio and MIDI go in.
   - The unit's output and MIDI come back, in sync, with the plugin's latency
     reported so the DAW can compensate.
@@ -64,17 +67,17 @@ Not there yet:
   `SP404MKII_APP1.bin` inside it. The app checks it against its checksum;
   other versions are allowed with a warning but untested.
 - Optional:
-  - A DAW that loads VST3 plugins, for Doom-404 Link.
+  - A DAW that loads VST3 plugins, for DM-404 Link.
   - [usbip-win2](https://github.com/vadimgrn/usbip-win2), to attach the
     unit's USB port to Windows (`usbip attach -r 127.0.0.1 -b 1-1` while the
     app runs). Linux has `usbip` built in.
-  - Windows MIDI Services, for the "Doom-404" MIDI port on Windows. The app
+  - Windows MIDI Services, for the "DM-404" MIDI port on Windows. The app
     uses it when Windows provides it (it is being built into Windows 11), or
     when you have put Microsoft's `Windows.Devices.Midi2.dll` in the data
-    folder yourself. Doom-404 does not ship it.
+    folder yourself. DM-404 does not ship it.
 
 The unit's drives, settings and your copy of the firmware live in
-`%LOCALAPPDATA%\Doom-404`:
+`%LOCALAPPDATA%\DM-404`:
 - `firmware/`: your copy of the System Program.
 - `system.bin`: the unit's flash (its settings).
 - `internal.img`: the internal drive (exFAT).
@@ -129,8 +132,8 @@ git.
    ```
 
 3. **The app, the plugin and the plugin test host.** This builds
-   `build/frontend/Doom404_artefacts/Release/Doom-404.exe`, the VST3 in
-   `build/frontend/Doom404Link_artefacts/Release/VST3/`, and `LinkHostTest`.
+   `build/frontend/DM404_artefacts/Release/DM-404.exe`, the VST3 in
+   `build/frontend/DM404Link_artefacts/Release/VST3/`, and `LinkHostTest`.
    With `INSTALL_PLUGIN=1` it also copies the VST3 to
    `%LOCALAPPDATA%\Programs\Common\VST3`.
 
@@ -138,11 +141,11 @@ git.
    INSTALL_PLUGIN=1 sh tools/build_frontend.sh
    ```
 
-4. **Run it.** Start `Doom-404.exe`. On first run it asks for the System
+4. **Run it.** Start `DM-404.exe`. On first run it asks for the System
    Program, then makes blank drives. In a development checkout it finds the
    emulator in `build/qemu/`.
 
-5. **A release package.** This lays out `build/dist/Doom-404-VERSION-win64/`
+5. **A release package.** This lays out `build/dist/DM-404-VERSION-win64/`
    and zips it:
    - the app, with the emulator in `qemu/` beside it (stripped of debug
      info), its effects engine, and the MSYS2 runtime DLLs they need (found
@@ -184,12 +187,12 @@ the Ghidra scripts, `tools/fxmap.py`, `tools/usbip_probe.py`, and more).
   - audio device;
   - muting the app while a DAW plugin plays the unit;
   - the MIDI IN/OUT jack ports, and forgetting all MIDI learn mappings;
-  - the "Doom-404" MIDI port.
-- **In a DAW**, put *Doom-404 Link* on a track while the app runs.
+  - the "DM-404" MIDI port.
+- **In a DAW**, put *DM-404 Link* on a track while the app runs.
 
 ## Licensing
 
-doom-404 combines projects under different licences, so its parts are
+dm-404 combines projects under different licences, so its parts are
 licensed differently. [`LICENSE`](LICENSE) has the details, and the full
 texts are in [`LICENSES/`](LICENSES/).
 
@@ -198,7 +201,7 @@ texts are in [`LICENSES/`](LICENSES/).
 | `core/qemu/`: the machine and device models, and patches to QEMU | **GPL-2.0-or-later**, as part of QEMU |
 | `core/fx/`: the effects engine | **MIT** |
 | `sp404fx.dll`, as built | MIT, plus **LGPL-2.1** for the DaisySP-LGPL parts it links (compressor, ReverbSc) |
-| `frontend/`: the app, the Doom-404 Link plugin, tests | **AGPL-3.0-or-later**, as required by JUCE's open-source licence |
+| `frontend/`: the app, the DM-404 Link plugin, tests | **AGPL-3.0-or-later**, as required by JUCE's open-source licence |
 | `frontend/ThirdParty/fatfs/`: ChaN's FatFs | FatFs licence (BSD-style) |
 | `tools/`, documentation, everything else | **MIT** |
 
@@ -222,5 +225,5 @@ If you pass on built binaries, keep their licences:
 **Roland.** The SP-404MKII firmware is Roland's copyright and is never
 included; each user supplies their own copy. "Roland" and "SP-404" are
 trademarks of Roland Corporation, used here only to say what hardware is
-emulated. The app's own names (the "Doom-404" MIDI port, the plugin) avoid
+emulated. The app's own names (the "DM-404" MIDI port, the plugin) avoid
 Roland's names.

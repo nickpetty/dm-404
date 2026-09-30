@@ -13,7 +13,7 @@
 //   and the like). What arrives at the inputs plays the unit (cable 9),
 //   except what MIDI learn has mapped to the panel (MidiLearn.h); what the
 //   unit sends to its OUT jack goes out.
-// - Its USB MIDI: a MIDI device of the app's own, "Doom-404", that other
+// - Its USB MIDI: a MIDI device of the app's own, "DM-404", that other
 //   programs see (cable 8 in, the USB bit out). macOS and Linux make one
 //   for any app (JUCE); on Windows it goes through Windows MIDI Services
 //   (WinMidi.h), when that is there.
@@ -22,7 +22,7 @@
 class MidiPorts : private juce::MidiInputCallback
 {
 public:
-    static constexpr const char* virtualName = "Doom-404";
+    static constexpr const char* virtualName = "DM-404";
 
     MidiPorts (EmulatorLink& l, juce::PropertiesFile& s, MidiLearn& ml) : link (l), settings (s), learn (ml)
     {
@@ -92,7 +92,7 @@ public:
         settings.saveIfNeeded();
     }
 
-    // The "Doom-404" port: on or off (remembered).
+    // The "DM-404" port: on or off (remembered).
     void setVirtual (bool on)
     {
         if (virtualIn != nullptr)
@@ -154,7 +154,7 @@ public:
     }
 
     // The unit's MIDI out (link thread): the OUT jack's packets to the
-    // chosen output, the USB ones to the Doom-404 port.
+    // chosen output, the USB ones to the DM-404 port.
     void unitMidi (const uint8_t* packet)
     {
         const int cables = packet[0] >> 4;

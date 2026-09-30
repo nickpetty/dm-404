@@ -92,7 +92,7 @@ static void put_device(SP404USBIP *u, uint8_t *p)
     const uint8_t *d = u->dev_desc;
 
     memset(p, 0, 312);
-    snprintf((char *)p, 256, "/sys/devices/doom-404/usb1/" BUSID);
+    snprintf((char *)p, 256, "/sys/devices/dm-404/usb1/" BUSID);
     snprintf((char *)p + 256, 32, BUSID);
     stl_be_p(p + 288, 1);                   /* busnum */
     stl_be_p(p + 292, 2);                   /* devnum */

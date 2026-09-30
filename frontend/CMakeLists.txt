@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(Doom404 VERSION 0.1.1 LANGUAGES C CXX)
+project(DM404 VERSION 0.1.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,14 +17,16 @@ else()
     FetchContent_MakeAvailable(JUCE)
 endif()
 
-juce_add_gui_app(Doom404
-    PRODUCT_NAME "Doom-404"
-    COMPANY_NAME "doom-404")
+juce_add_gui_app(DM404
+    PRODUCT_NAME "DM-404"
+    COMPANY_NAME "dm-404"
+    ICON_BIG Resources/icon.png
+    ICON_SMALL Resources/icon.png)
 
-juce_generate_juce_header(Doom404)
+juce_generate_juce_header(DM404)
 
 # The panel's bindings, built in (a development run reads the repo's copy).
-juce_add_binary_data(Doom404Data SOURCES panel.json)
+juce_add_binary_data(DM404Data SOURCES panel.json Resources/background.png Resources/icon.png)
 
 # FatFs (ChaN, BSD-style licence): the drive images.
 add_library(fatfs STATIC
@@ -32,7 +34,7 @@ add_library(fatfs STATIC
     ThirdParty/fatfs/ffunicode.c
     ThirdParty/fatfs/ffsystem.c)
 
-target_sources(Doom404 PRIVATE
+target_sources(DM404 PRIVATE
     Source/Main.cpp
     Source/EmulatorLink.cpp
     Source/PanelComponent.cpp
@@ -43,20 +45,20 @@ target_sources(Doom404 PRIVATE
     Source/DawBridge.cpp
     Source/WinMidi.cpp)
 
-target_compile_definitions(Doom404 PRIVATE
+target_compile_definitions(DM404 PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
-    JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:Doom404,JUCE_PRODUCT_NAME>"
-    JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:Doom404,JUCE_VERSION>"
+    JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:DM404,JUCE_PRODUCT_NAME>"
+    JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:DM404,JUCE_VERSION>"
     JUCE_DISPLAY_SPLASH_SCREEN=0)
 
-# Windows MIDI Services: the app's own "Doom-404" MIDI port (WinMidi.cpp).
+# Windows MIDI Services: the app's own "DM-404" MIDI port (WinMidi.cpp).
 # Only the SDK's metadata is used, to generate C++/WinRT headers; its
 # runtime is not shipped (Windows provides it, or the user adds it).
 if(WIN32)
-    option(DOOM404_WINMIDI "The Doom-404 MIDI port through Windows MIDI Services" ON)
+    option(DM404_WINMIDI "The DM-404 MIDI port through Windows MIDI Services" ON)
 endif()
-if(WIN32 AND DOOM404_WINMIDI)
+if(WIN32 AND DM404_WINMIDI)
     set(MIDI2_VERSION "0.99.83-devpreview.9")
     set(MIDI2_RELEASE "inbox-dev-preview-9")
     set(MIDI2_DIR "${CMAKE_BINARY_DIR}/midi2")
@@ -78,17 +80,17 @@ if(WIN32 AND DOOM404_WINMIDI)
             execute_process(COMMAND "${CPPWINRT}" -input "${MIDI2_WINMD}" -input "${SDK_VER}" -output "${MIDI2_DIR}/gen"
                             RESULT_VARIABLE gen_result)
         endif()
-        target_include_directories(Doom404 BEFORE PRIVATE "${MIDI2_DIR}/gen")
-        target_compile_definitions(Doom404 PRIVATE DOOM404_WINMIDI=1)
-        target_link_libraries(Doom404 PRIVATE windowsapp)
+        target_include_directories(DM404 BEFORE PRIVATE "${MIDI2_DIR}/gen")
+        target_compile_definitions(DM404 PRIVATE DM404_WINMIDI=1)
+        target_link_libraries(DM404 PRIVATE windowsapp)
         set_source_files_properties(Source/WinMidi.cpp PROPERTIES COMPILE_OPTIONS "/bigobj")
     else()
-        message(WARNING "Windows MIDI Services SDK or cppwinrt not found: no Doom-404 MIDI port on Windows")
+        message(WARNING "Windows MIDI Services SDK or cppwinrt not found: no DM-404 MIDI port on Windows")
     endif()
 endif()
 
-target_link_libraries(Doom404 PRIVATE
-    Doom404Data
+target_link_libraries(DM404 PRIVATE
+    DM404Data
     fatfs
     juce::juce_cryptography
     juce::juce_gui_extra
@@ -96,20 +98,20 @@ target_link_libraries(Doom404 PRIVATE
     juce::juce_recommended_config_flags
     juce::juce_recommended_warning_flags)
 
-# Doom-404 Link: the DAW plugin that carries the running app's unit (audio
+# DM-404 Link: the DAW plugin that carries the running app's unit (audio
 # both ways) into a DAW track. Plugin/LinkProcessor.h has the details.
 if(APPLE)
-    set(DOOM404_PLUGIN_FORMATS VST3 AU)
+    set(DM404_PLUGIN_FORMATS VST3 AU)
 else()
-    set(DOOM404_PLUGIN_FORMATS VST3)
+    set(DM404_PLUGIN_FORMATS VST3)
 endif()
 
-juce_add_plugin(Doom404Link
-    PRODUCT_NAME "Doom-404 Link"
-    COMPANY_NAME "doom-404"
+juce_add_plugin(DM404Link
+    PRODUCT_NAME "DM-404 Link"
+    COMPANY_NAME "dm-404"
     PLUGIN_MANUFACTURER_CODE D404
     PLUGIN_CODE D4Lk
-    FORMATS ${DOOM404_PLUGIN_FORMATS}
+    FORMATS ${DM404_PLUGIN_FORMATS}
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT TRUE
@@ -118,18 +120,18 @@ juce_add_plugin(Doom404Link
     VST3_CATEGORIES Fx Sampler
     COPY_PLUGIN_AFTER_BUILD FALSE)
 
-juce_generate_juce_header(Doom404Link)
+juce_generate_juce_header(DM404Link)
 
-target_sources(Doom404Link PRIVATE
+target_sources(DM404Link PRIVATE
     Plugin/LinkProcessor.cpp)
 
-target_compile_definitions(Doom404Link PUBLIC
+target_compile_definitions(DM404Link PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0)
 
-target_link_libraries(Doom404Link PRIVATE
+target_link_libraries(DM404Link PRIVATE
     juce::juce_audio_utils
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags

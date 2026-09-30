@@ -422,7 +422,7 @@ bool SdCardComponent::shouldDropFilesWhenDraggedExternally (const juce::DragAndD
     if (dragTemp != juce::File())
         dragTemp.deleteRecursively();
     dragTemp = juce::File::getSpecialLocation (juce::File::tempDirectory)
-                   .getChildFile ("Doom-404 SD " + juce::String (juce::Time::currentTimeMillis()));
+                   .getChildFile ("DM-404 SD " + juce::String (juce::Time::currentTimeMillis()));
     dragTemp.createDirectory();
     fatimg::Volume v;
     if (! v.open (Storage::toPath (image), true).empty())

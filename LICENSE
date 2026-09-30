@@ -1,4 +1,4 @@
-doom-404 is made of parts under different licences, because it builds on
+dm-404 is made of parts under different licences, because it builds on
 projects that are under different licences. Each part's licence text is in
 LICENSES/.
 
@@ -8,7 +8,7 @@ LICENSES/.
    patches to QEMU)                                              each file carries an SPDX line
   core/fx/    (the effects engine)       MIT                     our own code; see below for the
                                                                  built library
-  frontend/   (the app, the Doom-404     AGPL-3.0-or-later       it is built on JUCE, which is
+  frontend/   (the app, the DM-404     AGPL-3.0-or-later       it is built on JUCE, which is
    Link plugin, tests)                                           AGPLv3 (or commercial)
   frontend/ThirdParty/fatfs/             FatFs licence (BSD-     ChaN's FatFs, unchanged but for
                                          style, in each file)    its configuration
@@ -22,11 +22,11 @@ What the built programs are under, when you pass them on:
                           of DaisySP-LGPL it links statically: the compressor
                           and ReverbSc). The whole source is public, which
                           lets anyone rebuild or relink it, as the LGPL asks.
-  Doom-404(.exe),         AGPL-3.0-or-later, as JUCE's open-source licence
-  Doom-404 Link.vst3,     requires (the VST3 SDK in JUCE is MIT). Anyone who
+  DM-404(.exe),         AGPL-3.0-or-later, as JUCE's open-source licence
+  DM-404 Link.vst3,     requires (the VST3 SDK in JUCE is MIT). Anyone who
   LinkHostTest            receives them may have the source (this repo).
 
-Not part of doom-404, and never included in it:
+Not part of dm-404, and never included in it:
 
   - Roland's SP-404MKII firmware (System Program), which the user downloads
     from Roland and the app copies in. It is Roland's copyright.
@@ -35,7 +35,7 @@ Not part of doom-404, and never included in it:
     the user supplies it.
   - Anyone's samples or projects.
 
-"Roland" and "SP-404" are trademarks of Roland Corporation. doom-404 is an
+"Roland" and "SP-404" are trademarks of Roland Corporation. dm-404 is an
 independent project, not affiliated with or endorsed by Roland; the names
 are used only to say what hardware it emulates.
 

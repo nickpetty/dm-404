@@ -7,7 +7,7 @@
 // the first run. Nothing of Roland's ships with the app: the user points it
 // at the System Program they downloaded, and gets blank drives.
 //
-// The data folder (%LOCALAPPDATA%\Doom-404 on Windows) holds:
+// The data folder (%LOCALAPPDATA%\DM-404 on Windows) holds:
 //   firmware/SP404MKII_APP1.bin   the System Program, copied in at setup
 //   system.bin                    the unit's flash (settings; the firmware writes it)
 //   internal.img                  the internal drive (B:), exFAT like the unit's

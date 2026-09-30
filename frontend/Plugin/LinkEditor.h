@@ -49,19 +49,19 @@ public:
         auto r = getLocalBounds().reduced (16);
         g.setColour (juce::Colour (0xffff5a1f));
         g.setFont (juce::FontOptions (22.0f, juce::Font::bold));
-        g.drawText ("DOOM-404 LINK", r.removeFromTop (30), juce::Justification::left);
+        g.drawText ("DM-404 LINK", r.removeFromTop (30), juce::Justification::left);
 
         juce::String head, body;
         juce::Colour dot;
         switch (proc.getState())
         {
             case LinkProcessor::State::noApp:
-                head = "Doom-404 is not running";
-                body = "Start the Doom-404 app; this plugin connects to it.";
+                head = "DM-404 is not running";
+                body = "Start the DM-404 app; this plugin connects to it.";
                 dot = juce::Colours::grey;
                 break;
             case LinkProcessor::State::otherInstance:
-                head = "Another Doom-404 Link has the unit";
+                head = "Another DM-404 Link has the unit";
                 body = "One instance at a time carries the unit's audio.";
                 dot = juce::Colours::orange;
                 break;

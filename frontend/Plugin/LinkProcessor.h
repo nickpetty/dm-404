@@ -3,9 +3,9 @@
 #include "../Source/DawLink.h"
 #include "../Source/UsbMidi.h"
 
-// Doom-404 Link: the SP-404MKII emulator in a DAW track. The track's audio
+// DM-404 Link: the SP-404MKII emulator in a DAW track. The track's audio
 // and MIDI go into the unit (as USB audio and MIDI from a computer would),
-// and the unit's output and MIDI out come back, from the running Doom-404
+// and the unit's output and MIDI out come back, from the running DM-404
 // app over shared memory (DawLink.h). MIDI keeps its place against the
 // audio both ways; the DAW's transport can drive the unit as MIDI clock.
 //
@@ -31,7 +31,7 @@ public:
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
-    const juce::String getName() const override { return "Doom-404 Link"; }
+    const juce::String getName() const override { return "DM-404 Link"; }
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return true; }
     double getTailLengthSeconds() const override { return 0.0; }

@@ -22,7 +22,7 @@ LinkProcessor::LinkProcessor()
 
 void LinkProcessor::getStateInformation (juce::MemoryBlock& out)
 {
-    juce::XmlElement x ("Doom404Link");
+    juce::XmlElement x ("DM404Link");
     x.setAttribute ("trim", outputDb->get());
     x.setAttribute ("input", inputDb->get());
     x.setAttribute ("clock", sendClock->get());

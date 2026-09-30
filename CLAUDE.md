@@ -1,4 +1,4 @@
-# doom-404: a Roland SP-404MKII emulator
+# dm-404: a Roland SP-404MKII emulator
 
 Runs Roland's own SP-404MKII firmware (System Program 5.52) on an emulated
 NXP i.MX RT1060 in a QEMU fork, with a hardware-lookalike JUCE frontend.
@@ -132,7 +132,9 @@ writable image.
 Nothing of Roland's or the user's ships: on first run the app asks for the
 System Program (Roland's zip or SP404MKII_APP1.bin; sha256 checked, other
 versions allowed with a warning). Frontend/Source/Storage.cpp keeps the unit
-in %LOCALAPPDATA%\Doom-404: firmware/, system.bin (the NOR flash),
+in %LOCALAPPDATA%\DM-404 (Doom-404 up to 0.1.1: Storage::dataDir moves that
+folder over once, or keeps using it while it cannot; the settings file is
+copied from %APPDATA%\Doom-404 the same way): firmware/, system.bin (the NOR flash),
 internal.img (B:, 16 GB sparse exFAT, no partition table) and sdcard.img
 (A:, 16 GB sparse FAT32 with an MBR, IMPORT and EXPORT made). A dev
 checkout's firmware/, build/flash.bin and build/emmc.img are copied over
@@ -153,7 +155,7 @@ the window puts it back) and internal-drive backup/restore (to/from a folder
 of files). `sh tools/build_fatimg.sh` builds the same code as a CLI,
 build/fatimg.exe (create/info/ls/add/get/rm), for making test cards.
 
-## DAW plugin (Doom-404 Link)
+## DAW plugin (DM-404 Link)
 
 frontend/Plugin: a VST3 (AU on macOS) effect that carries the running
 app's unit into a DAW track: the track's audio goes in as USB audio (link
@@ -185,19 +187,19 @@ any number of inputs). MIDI learn (Frontend/Source/MidiLearn.h, right-click a co
 CCs from those inputs to panel controls, by name, in the settings (midiMap); mapped messages work the
 panel (PanelComponent::fromMidi) and do not reach the unit. Right-click's "Learn hardware binding"
 (panel.json, from the debug drawer's raw inputs) is offered only while the drawer is open.
-It also makes a MIDI port named "Doom-404" (never the Roland/SP-404
+It also makes a MIDI port named "DM-404" (never the Roland/SP-404
 name) as the unit's USB MIDI (cable 8 in, bit 3 out): JUCE createNewDevice
 on macOS and Linux; on Windows, Frontend/Source/WinMidi.cpp through Windows
 MIDI Services (a virtual device, which WinMM apps see as MIDI 1.0 ports).
 Its App SDK is a preview Microsoft does not let apps redistribute
 (checked 2026-09), so nothing of it ships: CMake fetches the pinned
 package (0.99.83-devpreview.9) only to generate C++/WinRT headers from its
-.winmd (DOOM404_WINMIDI); at run time the types come from Windows (in-box,
+.winmd (DM404_WINMIDI); at run time the types come from Windows (in-box,
 as they will be) or from a Windows.Devices.Midi2.dll the user put in the
 data folder (loaded through winrt_activation_handler). Seen working (the
 port listed by tools/midiports.py); then the service hung on later runs,
 Microsoft's issue #1047 (fix due Nov 2026): the app reports "not answering"
-after 10 s and never waits on it at exit. Status goes to doom-404.log in
+after 10 s and never waits on it at exit. Status goes to dm-404.log in
 the data folder.
 
 LinkHostTest (frontend/Tests) loads the VST3 like a DAW and runs it in
@@ -244,7 +246,8 @@ USB audio/MIDI device for Roland's driver would have to be written here,
 from the real unit's descriptors. Isochronous URBs are refused.
 
 The panel can take a background picture (View menu; copied to the data
-folder as background.*; stretched, in place of the body and backdrops) and
+folder as background.*; stretched, in place of the body and backdrops; by
+default frontend/Resources/background.png, "plain" for none) and
 a text colour for what is printed on it, set on its own (settings: background,
 textColour).
 

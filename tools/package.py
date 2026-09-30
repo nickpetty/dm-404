@@ -1,15 +1,15 @@
-"""Make a Windows release package of doom-404 from a finished build.
+"""Make a Windows release package of dm-404 from a finished build.
 
     python tools/package.py [VERSION]
 
 Builds nothing: run tools/build.sh, tools/build_fx.sh and
-tools/build_frontend.sh first. Lays out build/dist/Doom-404-VERSION-win64/:
+tools/build_frontend.sh first. Lays out build/dist/DM-404-VERSION-win64/:
 
-    Doom-404.exe                    the app
+    DM-404.exe                    the app
     qemu/qemu-system-arm.exe        the emulator (stripped of debug info)
     qemu/sp404fx.dll                the effects engine
     qemu/*.dll                      the MSYS2 runtime DLLs the two need
-    VST3/Doom-404 Link.vst3/        the DAW plugin
+    VST3/DM-404 Link.vst3/        the DAW plugin
     README.md, LICENSE, LICENSES/   this project's
     THIRD-PARTY.txt                 what else is inside, its licences, sources
     third-party-licenses/           those licences' texts
@@ -31,7 +31,7 @@ QEMU_TAG = 'v11.1.2'
 def version():
     if len(sys.argv) > 1:
         return sys.argv[1].lstrip('v')
-    m = re.search(r'project\(Doom404 VERSION ([0-9.]+)', open(os.path.join(ROOT, 'frontend', 'CMakeLists.txt')).read())
+    m = re.search(r'project\(DM404 VERSION ([0-9.]+)', open(os.path.join(ROOT, 'frontend', 'CMakeLists.txt')).read())
     return m.group(1)
 
 
@@ -99,11 +99,11 @@ def library_notes(dlls, dest):
 def main():
     ver = version()
     commit = git('rev-parse', 'HEAD')
-    name = 'Doom-404-%s-win64' % ver
+    name = 'DM-404-%s-win64' % ver
     dist = os.path.join(ROOT, 'build', 'dist')
     out = os.path.join(dist, name)
-    app = os.path.join(ROOT, 'build', 'frontend', 'Doom404_artefacts', 'Release', 'Doom-404.exe')
-    vst3 = os.path.join(ROOT, 'build', 'frontend', 'Doom404Link_artefacts', 'Release', 'VST3', 'Doom-404 Link.vst3')
+    app = os.path.join(ROOT, 'build', 'frontend', 'DM404_artefacts', 'Release', 'DM-404.exe')
+    vst3 = os.path.join(ROOT, 'build', 'frontend', 'DM404Link_artefacts', 'Release', 'VST3', 'DM-404 Link.vst3')
     qemu = os.path.join(ROOT, 'build', 'qemu', 'qemu-system-arm.exe')
     fx = os.path.join(ROOT, 'build', 'fx', 'sp404fx.dll')
     for f in (app, vst3, qemu, fx):
@@ -157,16 +157,16 @@ def main():
     libs = library_notes(dlls, tp)
 
     open(os.path.join(out, 'THIRD-PARTY.txt'), 'w', newline='\r\n').write('''\
-What is in this package besides doom-404's own code, and under which
+What is in this package besides dm-404's own code, and under which
 licences. The texts are in third-party-licenses/ (and LICENSES/).
 
-  Doom-404.exe, VST3/        built with JUCE 9 (AGPLv3 / commercial; used
+  DM-404.exe, VST3/        built with JUCE 9 (AGPLv3 / commercial; used
                              under the AGPLv3) and the Steinberg VST3 SDK (MIT),
                              and FatFs R0.15a (ChaN, BSD-style)
-  qemu/qemu-system-arm.exe   QEMU %s (GPL-2.0) with doom-404's machine
+  qemu/qemu-system-arm.exe   QEMU %s (GPL-2.0) with dm-404's machine
                              (GPL-2.0-or-later); source: https://www.qemu.org
                              and this project's repository (SOURCE.txt)
-  qemu/sp404fx.dll           doom-404's effects engine (MIT) with DaisySP (MIT)
+  qemu/sp404fx.dll           dm-404's effects engine (MIT) with DaisySP (MIT)
                              and DaisySP-LGPL (LGPL-2.1): its whole source is in
                              this project's repository and
                              https://github.com/electro-smith/DaisySP, so it can
@@ -177,14 +177,14 @@ licences. The texts are in third-party-licenses/ (and LICENSES/).
 
 Not included: Roland's SP-404MKII firmware (each user supplies their own),
 and the Windows MIDI Services SDK (Windows provides it, or the user does).
-"Roland" and "SP-404" are trademarks of Roland Corporation; doom-404 is not
+"Roland" and "SP-404" are trademarks of Roland Corporation; dm-404 is not
 affiliated with or endorsed by Roland.
 ''' % (QEMU_TAG, libs))
 
     open(os.path.join(out, 'SOURCE.txt'), 'w', newline='\r\n').write('''\
 The complete source of this build (GPL-2.0 / AGPL-3.0 / LGPL-2.1):
 
-  doom-404    https://github.com/nickpetty/doom-404
+  dm-404    https://github.com/nickpetty/dm-404
               commit %s
   QEMU        %s, https://gitlab.com/qemu-project/qemu (tools/qemu_sync.sh
               applies core/qemu/patches and overlays core/qemu)
@@ -193,7 +193,7 @@ The complete source of this build (GPL-2.0 / AGPL-3.0 / LGPL-2.1):
   JUCE        9.0.2, https://github.com/juce-framework/JUCE
   MSYS2 libraries: https://packages.msys2.org (sources linked from each package)
 
-If you cannot get any of these, ask the doom-404 maintainers for a copy
+If you cannot get any of these, ask the dm-404 maintainers for a copy
 (written offer, valid for three years from this release).
 ''' % (commit, QEMU_TAG))
 

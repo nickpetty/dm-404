@@ -1,3 +1,4 @@
+#include "BinaryData.h"
 #include "DebugPanel.h"
 #include "SdCardWindow.h"
 #include "Storage.h"
@@ -16,7 +17,7 @@ public:
         text.setJustificationType (juce::Justification::centred);
         text.setColour (juce::Label::textColourId, juce::Colour (0xffd8d8d0));
         text.setFont (juce::FontOptions (17.0f));
-        text.setText ("Doom-404 runs Roland's own SP-404MKII firmware, which is not included.\n\n"
+        text.setText ("DM-404 runs Roland's own SP-404MKII firmware, which is not included.\n\n"
                       "Download the SP-404MKII System Program (version 5.52) from roland.com, "
                       "then choose the zip you downloaded, or the SP404MKII_APP1.bin inside it.\n\n"
                       "A blank internal drive and SD card are made for you.",
@@ -71,10 +72,21 @@ public:
     MainComponent() : panel (link), debug (link, panel)
     {
         juce::PropertiesFile::Options opts;
-        opts.applicationName = "Doom-404";
+        opts.applicationName = "DM-404";
         opts.filenameSuffix = ".settings";
-        opts.folderName = "Doom-404";
+        opts.folderName = "DM-404";
         opts.osxLibrarySubFolder = "Application Support";
+        // Until 0.1.1 the app was Doom-404: its settings come over once.
+        if (! opts.getDefaultFile().existsAsFile())
+        {
+            auto old = opts;
+            old.applicationName = old.folderName = "Doom-404";
+            if (old.getDefaultFile().existsAsFile())
+            {
+                opts.getDefaultFile().getParentDirectory().createDirectory();
+                old.getDefaultFile().copyFileTo (opts.getDefaultFile());
+            }
+        }
         settings = std::make_unique<juce::PropertiesFile> (opts);
         sdSlot = std::make_unique<SdSlot> (link, *settings);
         sdSlot->onChange = [this] { menuItemsChanged(); };
@@ -262,9 +274,9 @@ public:
         }
         status.setText (error.isEmpty() ? "Starting emulator..." : error, juce::dontSendNotification);
         if (error.isNotEmpty())
-            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Doom-404", error);
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "DM-404", error);
         else if (! adopted.isEmpty())
-            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Doom-404",
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "DM-404",
                 "Brought over from the development checkout:\n" + adopted.joinIntoString ("\n")
                     + "\n\nThe unit now lives in " + Storage::dataDir().getFullPathName());
         adopted.clear();
@@ -280,8 +292,8 @@ public:
         }
         setup.setVisible (false);
         if (wrongVersion)
-            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Doom-404",
-                "That is not System Program 5.52, the version Doom-404 is made for. It may not work.");
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "DM-404",
+                "That is not System Program 5.52, the version DM-404 is made for. It may not work.");
         restartEmulator();
     }
 
@@ -294,7 +306,7 @@ public:
     //==========================================================================
     // The menu bar.
     enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
-                   debugDrawerId, audioSettingsId, muteForDawId, backgroundId, resetBackgroundId,
+                   debugDrawerId, audioSettingsId, muteForDawId, backgroundId, resetBackgroundId, defaultBackgroundId,
                    textColourId, resetTextColourId, virtualMidiId, midiServicesId, forgetMidiId,
                    midiInBase = 1000, midiOutBase = 2000 };     // + device index + 1 (0: none)
 
@@ -320,7 +332,9 @@ public:
             m.addItem (debugDrawerId, "Debug drawer\t`", true, debugShown);
             m.addSeparator();
             m.addItem (backgroundId, "Background image...");
-            m.addItem (resetBackgroundId, "Plain background", panel.hasCustomBackground());
+            const auto bg = settings->getValue ("background");
+            m.addItem (defaultBackgroundId, "Default background", true, bg.isEmpty());
+            m.addItem (resetBackgroundId, "Plain background", true, bg == "plain");
             m.addItem (textColourId, "Text colour...");
             m.addItem (resetTextColourId, "Default text colour", panel.getTextColour() != PanelComponent::defaultTextColour());
         }
@@ -349,7 +363,7 @@ public:
             m.addItem (forgetMidiId, "Forget all MIDI learn mappings", ! midiLearn->empty());
             // Its USB MIDI as a MIDI device of its own; what is wrong, if anything.
             const auto portStatus = midiPorts->virtualStatus();
-            m.addItem (virtualMidiId, "MIDI port \"Doom-404\"" + (portStatus.isEmpty() ? juce::String() : " (" + portStatus + ")"),
+            m.addItem (virtualMidiId, "MIDI port \"DM-404\"" + (portStatus.isEmpty() ? juce::String() : " (" + portStatus + ")"),
                        true, midiPorts->wantsVirtual());
             if (portStatus.contains ("Windows MIDI Services"))
                 m.addItem (midiServicesId, "Get Windows MIDI Services...");
@@ -393,7 +407,13 @@ public:
             case audioSettingsId:  showAudioSettings(); break;
             case backgroundId:     chooseBackground(); break;
             case resetBackgroundId:
+                // "plain": no picture at all (no setting: the default one).
                 panel.setCustomBackground ({});
+                settings->setValue ("background", "plain");
+                settings->saveIfNeeded();
+                break;
+            case defaultBackgroundId:
+                panel.setCustomBackground (defaultBackground());
                 settings->removeValue ("background");
                 settings->saveIfNeeded();
                 break;
@@ -487,16 +507,33 @@ public:
         o.launchAsync();
     }
 
+    // The picture the panel has unless another (or none) was chosen.
+    static juce::Image defaultBackground()
+    {
+        return juce::ImageCache::getFromMemory (BinaryData::background_png, BinaryData::background_pngSize);
+    }
+
+    // The setting "background": absent, the default picture; "plain", none;
+    // else the chosen picture's copy in the data folder.
     void restoreBackground()
     {
         if (settings->containsKey ("textColour"))
             panel.setTextColour (juce::Colour::fromString (settings->getValue ("textColour")));
-        const juce::File f (settings->getValue ("background"));
-        if (settings->getValue ("background").isEmpty() || ! f.existsAsFile())
+        const auto bg = settings->getValue ("background");
+        if (bg == "plain")
             return;
-        auto image = juce::ImageFileFormat::loadFrom (f);
-        if (image.isValid())
-            panel.setCustomBackground (image);
+        juce::Image image;
+        if (bg.isNotEmpty() && juce::File::isAbsolutePath (bg))
+        {
+            // The copy lives in the data folder, which may have moved
+            // (renamed with the app): look for it there by name.
+            juce::File f (bg);
+            if (! f.existsAsFile())
+                f = Storage::dataDir().getChildFile (f.getFileName());
+            if (f.existsAsFile())
+                image = juce::ImageFileFormat::loadFrom (f);
+        }
+        panel.setCustomBackground (image.isValid() ? image : defaultBackground());
     }
 
     void showSdCard()
@@ -718,11 +755,11 @@ private:
 
     void timerCallback() override
     {
-        // The Doom-404 MIDI port's troubles go to the log (for bug reports).
+        // The DM-404 MIDI port's troubles go to the log (for bug reports).
         if (const auto s = midiPorts->virtualStatus(); s != lastPortStatus)
         {
             lastPortStatus = s;
-            log ("MIDI port \"Doom-404\": " + (s.isEmpty() ? juce::String (midiPorts->wantsVirtual() ? "up" : "off") : s));
+            log ("MIDI port \"DM-404\": " + (s.isEmpty() ? juce::String (midiPorts->wantsVirtual() ? "up" : "off") : s));
         }
         // After 10 s without running dry, give latency back: the cushion
         // shrinks by 6 ms a second towards 60 ms (it grows while booting,
@@ -879,10 +916,10 @@ private:
     std::unique_ptr<MidiPorts> midiPorts;
     juce::String lastPortStatus { "?" };
 
-    // A line in doom-404.log in the data folder.
+    // A line in dm-404.log in the data folder.
     static void log (const juce::String& line)
     {
-        Storage::dataDir().getChildFile ("doom-404.log")
+        Storage::dataDir().getChildFile ("dm-404.log")
             .appendText (juce::Time::getCurrentTime().toISO8601 (true) + "  " + line + "\n");
     }
     juce::Array<juce::MidiDeviceInfo> midiInList, midiOutList;     // as last shown in the menu
@@ -916,18 +953,18 @@ private:
     int debugWidth = 0;             // what the drawer had before it was hidden
 };
 
-class Doom404Application : public juce::JUCEApplication
+class DM404Application : public juce::JUCEApplication
 {
 public:
-    const juce::String getApplicationName() override { return "Doom-404"; }
+    const juce::String getApplicationName() override { return "DM-404"; }
     const juce::String getApplicationVersion() override { return "0.1.0"; }
 
     void initialise (const juce::String& commandLine) override
     {
-        // A crash leaves a stack trace in the temp folder (doom404-crash.txt).
+        // A crash leaves a stack trace in the temp folder (dm404-crash.txt).
         juce::SystemStats::setApplicationCrashHandler ([] (void*)
         {
-            juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("doom404-crash.txt")
+            juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("dm404-crash.txt")
                 .replaceWithText (juce::SystemStats::getStackBacktrace());
         });
 
@@ -997,9 +1034,10 @@ private:
     class Window : public juce::DocumentWindow
     {
     public:
-        Window() : juce::DocumentWindow ("Doom-404: SP-404MKII emulator", juce::Colours::black, allButtons)
+        Window() : juce::DocumentWindow ("DM-404: SP-404MKII emulator", juce::Colours::black, allButtons)
         {
             setUsingNativeTitleBar (true);
+            setIcon (juce::ImageCache::getFromMemory (BinaryData::icon_png, BinaryData::icon_pngSize));
             auto* main = new MainComponent();
             setContentOwned (main, true);
             setMenuBar (main);
@@ -1019,4 +1057,4 @@ private:
     std::unique_ptr<Window> window;
 };
 
-START_JUCE_APPLICATION (Doom404Application)
+START_JUCE_APPLICATION (DM404Application)
