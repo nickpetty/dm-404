@@ -179,6 +179,13 @@ firmware reacts within ~4 ms. The plugin sends MIDI clock, Song Position
 and Start/Continue/Stop from the DAW transport; the unit follows it as it
 is (its tempo DT1 went to 140.0). The standalone app has the MIDI IN/OUT
 jacks as computer MIDI ports (Options menu, cable 9 in, bit 0 out).
+It also makes a virtual MIDI port pair named "Doom-404" (never the
+Roland/SP-404 name) as the unit's USB MIDI (cable 8 in, bit 3 out) where
+the system allows apps to (JUCE createNewDevice: macOS, Linux). Windows
+cannot yet: Windows MIDI Services can (MidiVirtualDeviceManager, shown to
+WinMM apps as MIDI 1.0 ports), but its App SDK is still a preview runtime
+that apps may not redistribute (checked 2026-09); revisit when it ships in
+Windows.
 
 LinkHostTest (frontend/Tests) loads the VST3 like a DAW and runs it in
 real time at 44.1 kHz against the running app: `LinkHostTest PLUGIN.vst3

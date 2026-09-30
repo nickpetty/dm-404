@@ -272,7 +272,7 @@ public:
     // The menu bar.
     enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
                    debugDrawerId, audioSettingsId, muteForDawId, backgroundId, resetBackgroundId,
-                   textColourId, resetTextColourId,
+                   textColourId, resetTextColourId, virtualMidiId,
                    midiInBase = 1000, midiOutBase = 2000 };     // + device index + 1 (0: none)
 
     juce::StringArray getMenuBarNames() override { return { "Unit", "View", "Options" }; }
@@ -321,6 +321,11 @@ public:
             ports (out, midiOutBase, midiOutList, midiPorts->outputId());
             m.addSubMenu ("MIDI IN (plays the unit)", in);
             m.addSubMenu ("MIDI OUT (from the unit)", out);
+            // Its USB MIDI as a MIDI device of its own (not on Windows yet).
+            if (MidiPorts::virtualSupported())
+                m.addItem (virtualMidiId, "Virtual MIDI port \"Doom-404\"", true, midiPorts->hasVirtual());
+            else
+                m.addItem (virtualMidiId, "Virtual MIDI port \"Doom-404\" (not on Windows yet)", false, false);
         }
         return m;
     }
@@ -363,6 +368,7 @@ public:
                 settings->saveIfNeeded();
                 break;
             case textColourId:     chooseTextColour(); break;
+            case virtualMidiId:    midiPorts->setVirtual (! midiPorts->hasVirtual()); break;
             case resetTextColourId:
                 panel.setTextColour (PanelComponent::defaultTextColour());
                 settings->removeValue ("textColour");
