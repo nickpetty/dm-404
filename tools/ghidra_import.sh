@@ -4,7 +4,7 @@
 # decompressed data regions added as memory blocks by ImportRegions.java.
 set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
-tools=${TOOLS:-/c/Users/nick/tools}
+tools=${TOOLS:-$HOME/tools}   # holds jdk-21* and ghidra_*_PUBLIC
 export JAVA_HOME=$(ls -d "$tools"/jdk-21*)
 ghidra=$(ls -d "$tools"/ghidra_*_PUBLIC)
 proj=$root/build/ghidra
