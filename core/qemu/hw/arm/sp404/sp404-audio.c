@@ -112,6 +112,17 @@ static void sp404_audio_frame(void *opaque,
         memset(a->slot_peak, 0, sizeof(a->slot_peak));
         a->peak_frames = 0;
     }
+    /*
+     * The inputs play from a steady backlog of about 20 ms (they arrive in
+     * the audio device's blocks, on the computer's clock): they wait for
+     * that much at the start and after running dry. Without this, what
+     * piled up while the unit booted stayed as delay for good.
+     */
+    if (!a->in_count) {
+        a->in_primed = false;
+    } else if (!a->in_primed && a->in_count >= SP404_IN_TARGET) {
+        a->in_primed = true;
+    }
     if (a->fx && sp404_fx_active(a->fx)) {
         /* The BMC mixes the buses through its effects. */
         float stems[8], in[2] = { 0, 0 }, out[2], bus[8];
@@ -119,7 +130,7 @@ static void sp404_audio_frame(void *opaque,
         for (int i = 0; i < 8; i++) {
             stems[i] = sext20(w[i]) / 32768.0f;
         }
-        if (a->in_count) {
+        if (a->in_primed) {
             in[0] = a->in_ring[a->in_head * 2] / 32768.0f;
             in[1] = a->in_ring[a->in_head * 2 + 1] / 32768.0f;
         }
@@ -181,7 +192,7 @@ static void sp404_audio_frame(void *opaque,
         a->usb_head = (a->usb_head + 1) % SP404_USB_RING;
         a->usb_count--;
     }
-    if (a->in_count && a->in_slot + 1 < (int)rx_words) {
+    if (a->in_primed && a->in_slot + 1 < (int)rx_words) {
         int16_t il = a->in_ring[a->in_head * 2], ir = a->in_ring[a->in_head * 2 + 1];
         int32_t sl = (int16_t)rx[0][a->in_slot] + il;
         int32_t sr = (int16_t)rx[0][a->in_slot + 1] + ir;
@@ -224,6 +235,13 @@ void sp404_audio_input(SP404Audio *a, const int16_t *lr, int frames)
         a->in_ring[at * 2] = lr[i * 2];
         a->in_ring[at * 2 + 1] = lr[i * 2 + 1];
         a->in_count++;
+    }
+    /* Running ahead (the computer's clock is not ours): back to the target. */
+    if (a->in_count > SP404_IN_MAX) {
+        unsigned drop = a->in_count - SP404_IN_TARGET;
+
+        a->in_head = (a->in_head + drop) % 16384;
+        a->in_count -= drop;
     }
 }
 

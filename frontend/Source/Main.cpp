@@ -760,7 +760,11 @@ private:
         const double target = cushion.load();
         const double fill = link.audioBacklog() + (double) staged;
 
-        if (fill > target * 8)
+        // Well over the cushion (more than ~110 ms over): drop back at once.
+        // Steering only closes 0.5% a second, so a surplus left from boot
+        // would otherwise sit there as delay (heard on the inputs through
+        // EXT SOURCE) for a minute or more.
+        if (fill > target * 2 + 2400)
         {
             ++skips;
             // Far behind (the device stalled, or the emulator burst ahead):

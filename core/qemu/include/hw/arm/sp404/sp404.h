@@ -441,6 +441,8 @@ void sp404_fx_process(SP404Fx *e, const float *stems, const float *in,
 #define SP404_USB_RING 8192
 #define SP404_USB_MIDI 512
 #define SP404_USB_TARGET (48 * 20)      /* the USB audio backlog kept: 20 ms */
+#define SP404_IN_TARGET (48 * 20)       /* the inputs' backlog: 20 ms ... */
+#define SP404_IN_MAX (48 * 50)          /* ... skipped back to past 50 ms */
 
 typedef struct SP404Audio {
     SP404Fx *fx;                /* the BMC's effects, if loaded */
@@ -458,6 +460,7 @@ typedef struct SP404Audio {
     /* Stereo input from the frontend, played into RX line 0 at in_slot. */
     int16_t in_ring[16384 * 2];
     unsigned in_head, in_count;
+    bool in_primed;             /* playing (had SP404_IN_TARGET in hand) */
     int in_slot;
     /* USB audio from the host (the DAW plugin), mixed with the inputs. */
     int16_t usb_ring[SP404_USB_RING * 2];
