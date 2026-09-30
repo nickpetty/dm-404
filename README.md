@@ -6,10 +6,7 @@ QEMU, with a desktop app that looks and plays like the hardware and a DAW
 plugin that brings it into your sessions.
 
 An independent project: not affiliated with or endorsed by Roland (see
-[Licensing](#licensing)). It was called Doom-404 up to 0.1.1; the app moves
-that version's drives and settings over the first time it runs, and the
-plugin keeps its identity, so DAW projects still find it (delete the old
-`Doom-404 Link.vst3`).
+[Licensing](#licensing)).
 
 > **You need your own copy of Roland's firmware.** Nothing of Roland's is in
 > this repository or in anything built from it. The app asks for the System
