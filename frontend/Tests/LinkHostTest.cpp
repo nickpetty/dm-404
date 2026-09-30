@@ -71,7 +71,14 @@ int main (int argc, char** argv)
         return 1;
     }
     plugin->setPlayHead (&head);
-    plugin->setPlayConfigDetails (2, 2, rate, block);
+    // Every output on: the main one and the separate buses.
+    auto layout = plugin->getBusesLayout();
+    for (int i = 1; i < layout.outputBuses.size(); ++i)
+        layout.outputBuses.getReference (i) = juce::AudioChannelSet::stereo();
+    if (! plugin->setBusesLayout (layout))
+        std::printf ("could not turn on the extra outputs\n");
+    const int outs = plugin->getTotalNumOutputChannels();
+    std::printf ("%d output buses, %d channels\n", plugin->getBusCount (false), outs);
     plugin->prepareToPlay (rate, block);
     const int latency = plugin->getLatencySamples();
     std::printf ("latency %d samples (%.1f ms)\n", latency, latency * 1000.0 / rate);
@@ -81,7 +88,8 @@ int main (int argc, char** argv)
     map.open (false);
     int minFill = 1 << 30, maxFill = 0;
 
-    juce::AudioBuffer<float> buf (2, block);
+    juce::AudioBuffer<float> buf (juce::jmax (2, outs), block);
+    std::vector<float> busPeak ((size_t) buf.getNumChannels() / 2, 0.0f);
     juce::MidiBuffer midi;
     const auto start = juce::Time::getMillisecondCounterHiRes();
     double phase = 0.0, peak = 0.0, sum = 0.0;
@@ -142,6 +150,9 @@ int main (int argc, char** argv)
         float blockPeak = 0.0f;
         for (int c = 0; c < 2; ++c)
             blockPeak = juce::jmax (blockPeak, buf.getMagnitude (c, 0, block));
+        for (size_t b = 0; b < busPeak.size(); ++b)
+            busPeak[b] = juce::jmax (busPeak[b], buf.getMagnitude ((int) b * 2, 0, block),
+                                     buf.getMagnitude ((int) b * 2 + 1, 0, block));
         peak = juce::jmax (peak, (double) blockPeak);
         sum += buf.getRMSLevel (0, 0, block);
         silentBlocks += blockPeak == 0.0f;
@@ -154,6 +165,13 @@ int main (int argc, char** argv)
                          sum / blocks, (long long) silentBlocks, (long long) blocks, minFill / 48.0, maxFill / 48.0);
             minFill = 1 << 30;
             maxFill = 0;
+            if (busPeak.size() > 1)
+            {
+                std::printf ("     outputs (main, DRY, BUS 1, BUS 2):");
+                for (auto& p : busPeak)
+                    std::printf (" %.3f", p), p = 0.0f;
+                std::printf ("\n");
+            }
             peak = sum = 0.0;
             silentBlocks = blocks = 0;
         }

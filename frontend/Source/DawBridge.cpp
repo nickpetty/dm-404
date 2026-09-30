@@ -37,18 +37,65 @@ void DawBridge::timerCallback()
 {
     at (shared->appAlive).store (juce::Time::currentTimeMillis());
     at (shared->volume).store (link.outputGain.load());
+    // The separate buses cost link bandwidth: only while a plugin plays
+    // (asked again after each emulator start).
+    const bool want = pluginConnected() && link.isConnected();
+    if (want != busesWanted.load() || (want && link.getStartCount() != busesStart))
+    {
+        busesStart = link.getStartCount();
+        busesWanted = want;
+        link.sendBusesWanted (want);
+    }
 }
 
 void DawBridge::unitOutput (const int16_t* lr, int frames, uint32_t framesAfter)
 {
     if (shared == nullptr)
         return;
+    // A block still waiting for its buses has had them late: without.
+    if (pendingFrames > 0)
+        flushPending (nullptr);
+    frames = juce::jmin (frames, 1024);
+    if (busesWanted.load())
+    {
+        // Its buses come next: they go into the ring together.
+        std::memcpy (pending, lr, sizeof (int16_t) * 2 * (size_t) frames);
+        pendingFrames = frames;
+    }
+    else
+    {
+        std::memcpy (pending, lr, sizeof (int16_t) * 2 * (size_t) frames);
+        pendingFrames = frames;
+        flushPending (nullptr);
+    }
+    // Where the unit's frames land in the ring, for stamping its MIDI.
+    fromDelta = at (shared->fromUnit.write).load() + (uint32_t) pendingFrames - framesAfter;
+}
+
+void DawBridge::unitBuses (const int16_t* buses, int frames)
+{
+    if (shared != nullptr && pendingFrames > 0 && frames == pendingFrames)
+        flushPending (buses);
+}
+
+void DawBridge::flushPending (const int16_t* buses)
+{
     // Only while a plugin reads it (it would only fill up otherwise; if the
     // plugin stalls, what does not fit is dropped).
     if (pluginConnected())
-        write (shared->fromUnit, lr, (uint32_t) frames);
-    // Where the unit's frames land in the ring, for stamping its MIDI.
-    fromDelta = at (shared->fromUnit.write).load() - framesAfter;
+    {
+        int16_t frame[1024 * unitChannels];
+        for (int i = 0; i < pendingFrames; ++i)
+        {
+            auto* f = frame + i * unitChannels;
+            f[0] = pending[i * 2];
+            f[1] = pending[i * 2 + 1];
+            for (int k = 0; k < 6; ++k)
+                f[2 + k] = buses != nullptr ? buses[i * 6 + k] : (int16_t) 0;
+        }
+        write (shared->fromUnit, frame, (uint32_t) pendingFrames);
+    }
+    pendingFrames = 0;
 }
 
 void DawBridge::unitMidi (uint32_t frame, const uint8_t* packet)

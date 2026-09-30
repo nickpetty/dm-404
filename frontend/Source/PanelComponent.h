@@ -89,17 +89,17 @@ public:
     void tap (const juce::String& name);
 
     // A picture stretched over the panel in place of its body and
-    // backdrops, and the colour of the printed text over it. An invalid
-    // image goes back to the plain panel (and its text colour).
-    void setCustomBackground (const juce::Image& image, juce::Colour text)
+    // backdrops (an invalid image: the plain panel), and the colour of the
+    // text printed on the panel.
+    void setCustomBackground (const juce::Image& image)
     {
         background = image;
-        textColour = image.isValid() ? text : juce::Colour (defaultText);
         repaint();
     }
     bool hasCustomBackground() const { return background.isValid(); }
     juce::Colour getTextColour() const { return textColour; }
     void setTextColour (juce::Colour c) { textColour = c; repaint(); }
+    static juce::Colour defaultTextColour() { return juce::Colour (defaultText); }
 
     static juce::File bindingsFile();
     void loadBindings();

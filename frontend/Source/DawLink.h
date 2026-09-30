@@ -5,7 +5,9 @@
 //
 //   toUnit    the DAW's audio into the unit (USB audio in): plugin writes,
 //             app reads and sends it to the emulator
-//   fromUnit  the unit's output (USB audio out): app writes, plugin reads
+//   fromUnit  the unit's output (USB audio out), 8 channels: the main mix,
+//             then DRY, BUS 1 and BUS 2 before the master effects (the
+//             plugin's extra outputs): app writes, plugin reads
 //   midiToUnit    MIDI into the unit: plugin writes, app sends it on
 //   midiFromUnit  the unit's MIDI out: app writes, plugin reads
 //
@@ -26,7 +28,7 @@
 namespace dawlink
 {
     constexpr uint32_t magic = 0x34303444;      // "D404"
-    constexpr uint32_t version = 2;
+    constexpr uint32_t version = 3;
     constexpr uint32_t rate = 48000;
     constexpr uint32_t ringFrames = 32768;      // 0.68 s; a power of two
     constexpr uint32_t midiPackets = 4096;
@@ -36,12 +38,18 @@ namespace dawlink
     // cushion's wander and the trip: part of the plugin's latency.
     constexpr uint32_t midiLead = 960;
 
+    // Interleaved 16-bit frames of `Ch` channels.
+    template <int Ch>
     struct AudioRing
     {
+        static constexpr int channels = Ch;
         uint32_t write, read;
         uint32_t pad[14];
-        int16_t data[ringFrames * 2];
+        int16_t data[ringFrames * Ch];
     };
+
+    // The unit's side: main L/R, DRY L/R, BUS 1 L/R, BUS 2 L/R.
+    constexpr int unitChannels = 8;
 
     struct MidiEvent
     {
@@ -63,7 +71,8 @@ namespace dawlink
         uint64_t pluginOwner;                   // the instance holding the link, 0 = none
         float volume;                           // the app's VOLUME, as a gain on the unit's output
         uint32_t pad[7];
-        AudioRing toUnit, fromUnit;
+        AudioRing<2> toUnit;
+        AudioRing<unitChannels> fromUnit;
         MidiRing midiToUnit, midiFromUnit;
     };
 
@@ -115,42 +124,41 @@ namespace dawlink
     };
 
     // Ring helpers: frames ready to read, room to write, and the copies.
-    inline uint32_t ready (AudioRing& r) { return at (r.write).load (std::memory_order_acquire) - at (r.read).load (std::memory_order_relaxed); }
-    inline uint32_t room (AudioRing& r) { return ringFrames - (at (r.write).load (std::memory_order_relaxed) - at (r.read).load (std::memory_order_acquire)); }
+    template <typename Ring>
+    inline uint32_t ready (Ring& r) { return at (r.write).load (std::memory_order_acquire) - at (r.read).load (std::memory_order_relaxed); }
+    template <typename Ring>
+    inline uint32_t room (Ring& r) { return ringFrames - (at (r.write).load (std::memory_order_relaxed) - at (r.read).load (std::memory_order_acquire)); }
 
-    // Writes up to `frames` interleaved stereo frames; returns how many fit.
-    inline uint32_t write (AudioRing& r, const int16_t* lr, uint32_t frames)
+    // Writes up to `frames` interleaved frames; returns how many fit.
+    template <typename Ring>
+    inline uint32_t write (Ring& r, const int16_t* d, uint32_t frames)
     {
+        constexpr int ch = Ring::channels;
         frames = juce::jmin (frames, room (r));
         const uint32_t w = at (r.write).load (std::memory_order_relaxed);
         for (uint32_t i = 0; i < frames; ++i)
-        {
-            const uint32_t k = ((w + i) & (ringFrames - 1)) * 2;
-            r.data[k] = lr[i * 2];
-            r.data[k + 1] = lr[i * 2 + 1];
-        }
+            std::memcpy (&r.data[((w + i) & (ringFrames - 1)) * ch], d + i * ch, sizeof (int16_t) * ch);
         at (r.write).store (w + frames, std::memory_order_release);
         return frames;
     }
 
     // Reads up to `frames`; returns how many were there.
-    inline uint32_t read (AudioRing& r, int16_t* lr, uint32_t frames)
+    template <typename Ring>
+    inline uint32_t read (Ring& r, int16_t* d, uint32_t frames)
     {
+        constexpr int ch = Ring::channels;
         frames = juce::jmin (frames, ready (r));
         const uint32_t rd = at (r.read).load (std::memory_order_relaxed);
         for (uint32_t i = 0; i < frames; ++i)
-        {
-            const uint32_t k = ((rd + i) & (ringFrames - 1)) * 2;
-            lr[i * 2] = r.data[k];
-            lr[i * 2 + 1] = r.data[k + 1];
-        }
+            std::memcpy (d + i * ch, &r.data[((rd + i) & (ringFrames - 1)) * ch], sizeof (int16_t) * ch);
         at (r.read).store (rd + frames, std::memory_order_release);
         return frames;
     }
 
     // The reader jumps so that `keep` frames remain (after a stall, or to
     // start at a set latency).
-    inline void skipTo (AudioRing& r, uint32_t keep)
+    template <typename Ring>
+    inline void skipTo (Ring& r, uint32_t keep)
     {
         const uint32_t w = at (r.write).load (std::memory_order_acquire);
         const uint32_t rd = at (r.read).load (std::memory_order_relaxed);

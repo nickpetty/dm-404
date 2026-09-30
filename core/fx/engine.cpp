@@ -166,7 +166,7 @@ class Engine
         }
     }
 
-    void Process(const float *st, const float *in, float *out, int frames)
+    void Process(const float *st, const float *in, float *out, float *buses, int frames)
     {
         for(int f = 0; f < frames; f++, st += SP404FX_STEMS, in += 2, out += 2)
         {
@@ -177,11 +177,14 @@ class Engine
                 br[kStemRoute[k]] += st[2 * k + 1];
             }
             float l = bl[kDry], r = br[kDry];
+            float bus[3][2] = {{l, r}};
             for(int b = 1; b <= 2; b++)
             {
                 float xl = bl[b], xr = br[b];
                 slot_[b].Process(xl, xr);
                 const float m = muted_[b - 1] ? 0.f : 1.f;
+                bus[b][0] = xl * m;
+                bus[b][1] = xr * m;
                 l += xl * m;
                 r += xr * m;
             }
@@ -197,6 +200,17 @@ class Engine
             const float g = mute_.Next();
             out[0] = l * g;
             out[1] = r * g;
+            if(buses)
+            {
+                // DRY, BUS 1 and BUS 2 as they enter the master (BUS 3/4)
+                // effects: after their own effects and mutes.
+                for(int b = 0; b < 3; b++)
+                {
+                    buses[2 * b]     = bus[b][0] * g;
+                    buses[2 * b + 1] = bus[b][1] * g;
+                }
+                buses += SP404FX_BUSES;
+            }
         }
     }
 
@@ -262,7 +276,13 @@ void sp404fx_dt1(SP404FX *fx, const uint8_t *addr, const uint8_t *data, int len)
 
 void sp404fx_process(SP404FX *fx, const float *stems, const float *input, float *out, int frames)
 {
-    fx->engine.Process(stems, input, out, frames);
+    fx->engine.Process(stems, input, out, nullptr, frames);
+}
+
+void sp404fx_process_buses(SP404FX *fx, const float *stems, const float *input, float *out, float *buses,
+                           int frames)
+{
+    fx->engine.Process(stems, input, out, buses, frames);
 }
 
 int sp404fx_slot(SP404FX *fx, int slot, int *on)

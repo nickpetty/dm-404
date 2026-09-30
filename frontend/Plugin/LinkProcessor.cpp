@@ -5,7 +5,10 @@ using namespace dawlink;
 
 LinkProcessor::LinkProcessor()
     : juce::AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true)
-                                             .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
+                                             .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
+                                             .withOutput ("DRY", juce::AudioChannelSet::stereo(), false)
+                                             .withOutput ("BUS 1", juce::AudioChannelSet::stereo(), false)
+                                             .withOutput ("BUS 2", juce::AudioChannelSet::stereo(), false))
 {
     const auto db = juce::NormalisableRange<float> (-24.0f, 24.0f, 0.1f);
     addParameter (outputDb = new juce::AudioParameterFloat (juce::ParameterID { "trim", 1 }, "Output trim", db, 0.0f,
@@ -52,6 +55,9 @@ void LinkProcessor::timerCallback()
 
 bool LinkProcessor::isBusesLayoutSupported (const BusesLayout& l) const
 {
+    for (int i = 1; i < l.outputBuses.size(); ++i)
+        if (! l.outputBuses[i].isDisabled() && l.outputBuses[i] != juce::AudioChannelSet::stereo())
+            return false;
     return l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo()
         && (l.getMainInputChannelSet() == juce::AudioChannelSet::stereo()
             || l.getMainInputChannelSet() == juce::AudioChannelSet::mono()
@@ -67,16 +73,16 @@ void LinkProcessor::prepareToPlay (double sampleRate, int maxBlock)
     // Room for blocks up to twice the promised size (some hosts overshoot).
     const int block = maxBlock * 2;
     const int maxAt48 = (int) std::ceil (block * dawlink::rate / sampleRate * 1.01) + 16;
-    stageL.assign ((size_t) maxAt48 + targetFrames * 4, 0.0f);
-    stageR.assign (stageL.size(), 0.0f);
-    raw.assign (stageL.size() * 2, 0);
+    for (auto& s : stage)
+        s.assign ((size_t) maxAt48 + targetFrames * 4, 0.0f);
+    raw.assign (stage[0].size() * unitCh, 0);
     inStageL.assign ((size_t) block * 2 + 16, 0.0f);
     inStageR.assign (inStageL.size(), 0.0f);
     conv[0].assign ((size_t) maxAt48 * 2, 0.0f);
     conv[1].assign (conv[0].size(), 0.0f);
     rawIn.assign (conv[0].size() * 2, 0);
-    outL.reset();
-    outR.reset();
+    for (auto& c : outConv)
+        c.reset();
     inL.reset();
     inR.reset();
     staged = inStaged = 0;
@@ -299,8 +305,8 @@ bool LinkProcessor::fromUnit (juce::AudioBuffer<float>& buffer, int n, uint32_t&
         skipTo (ring, (uint32_t) targetFrames);
         staged = 0;
         steer = 0.0;
-        outL.reset();
-        outR.reset();
+        for (auto& c : outConv)
+            c.reset();
         primed = true;
     }
     else if (fill > targetFrames * 4)
@@ -318,13 +324,11 @@ bool LinkProcessor::fromUnit (juce::AudioBuffer<float>& buffer, int n, uint32_t&
     const int needed = (int) std::ceil (n * ratio) + 4;
     if (staged < needed)
     {
-        const int want48 = juce::jmin (needed - staged, (int) stageL.size() - staged);
+        const int want48 = juce::jmin (needed - staged, (int) stage[0].size() - staged);
         const auto got = (int) read (ring, raw.data(), (uint32_t) want48);
         for (int i = 0; i < got; ++i)
-        {
-            stageL[(size_t) (staged + i)] = raw[(size_t) i * 2] / 32768.0f;
-            stageR[(size_t) (staged + i)] = raw[(size_t) i * 2 + 1] / 32768.0f;
-        }
+            for (int c = 0; c < unitCh; ++c)
+                stage[c][(size_t) (staged + i)] = raw[(size_t) (i * unitCh + c)] / 32768.0f;
         staged += got;
     }
     if (staged < needed)
@@ -336,10 +340,22 @@ bool LinkProcessor::fromUnit (juce::AudioBuffer<float>& buffer, int n, uint32_t&
     }
     // The ring frame this block's first sample comes from.
     base = at (ring.read).load() - (uint32_t) staged;
-    const int used = outL.process (ratio, stageL.data(), buffer.getWritePointer (0), n, staged, 0);
-    outR.process (ratio, stageR.data(), buffer.getWritePointer (1), n, staged, 0);
-    std::memmove (stageL.data(), stageL.data() + used, sizeof (float) * (size_t) (staged - used));
-    std::memmove (stageR.data(), stageR.data() + used, sizeof (float) * (size_t) (staged - used));
+    // The main output and whichever of DRY, BUS 1, BUS 2 the DAW has on
+    // (every converter runs, so a bus turned on later is in step).
+    int used = 0;
+    float scratch[4096];
+    for (int bus = 0; bus < unitCh / 2; ++bus)
+    {
+        auto* out = bus < getBusCount (false) && getBus (false, bus)->isEnabled() ? getBus (false, bus) : nullptr;
+        for (int c = 0; c < 2; ++c)
+        {
+            const int ch = out != nullptr ? out->getChannelIndexInProcessBlockBuffer (c) : -1;
+            float* dest = ch >= 0 && ch < buffer.getNumChannels() && n <= 4096 ? buffer.getWritePointer (ch) : scratch;
+            used = outConv[bus * 2 + c].process (ratio, stage[bus * 2 + c].data(), dest, juce::jmin (n, 4096), staged, 0);
+        }
+    }
+    for (auto& s : stage)
+        std::memmove (s.data(), s.data() + used, sizeof (float) * (size_t) (staged - used));
     staged -= used;
     return true;
 }

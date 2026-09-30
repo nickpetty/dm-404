@@ -18,6 +18,7 @@ public:
     // emulator's frame count after it, and its USB MIDI out, stamped with
     // that count.
     void unitOutput (const int16_t* lr, int frames, uint32_t framesAfter);
+    void unitBuses (const int16_t* buses, int frames);
     void unitMidi (uint32_t frame, const uint8_t* packet);
 
     // A plugin instance holds the link and is running.
@@ -31,4 +32,10 @@ private:
     dawlink::Map map;
     dawlink::Shared* shared = nullptr;
     std::atomic<uint32_t> fromDelta { 0 };      // fromUnit ring frame = emulator output frame + this
+    void flushPending (const int16_t* buses);
+    // The main block waiting for its buses (link thread).
+    int16_t pending[1024 * 2];
+    int pendingFrames = 0;
+    std::atomic<bool> busesWanted { false };
+    uint32_t busesStart = 0;
 };

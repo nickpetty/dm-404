@@ -113,6 +113,7 @@ public:
         daw = std::make_unique<DawBridge> (link);
         muteForDaw = settings->getBoolValue ("muteForDaw", true);
         link.onAudioOut = [this] (const int16_t* lr, int frames, uint32_t after) { daw->unitOutput (lr, frames, after); };
+        link.onBuses = [this] (const int16_t* buses, int frames) { daw->unitBuses (buses, frames); };
         // The unit's MIDI out: USB to the plugin, the OUT jack to a MIDI port.
         midiPorts = std::make_unique<MidiPorts> (link, *settings);
         link.onUnitMidi = [this] (uint32_t frame, const uint8_t* p)
@@ -271,6 +272,7 @@ public:
     // The menu bar.
     enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
                    debugDrawerId, audioSettingsId, muteForDawId, backgroundId, resetBackgroundId,
+                   textColourId, resetTextColourId,
                    midiInBase = 1000, midiOutBase = 2000 };     // + device index + 1 (0: none)
 
     juce::StringArray getMenuBarNames() override { return { "Unit", "View", "Options" }; }
@@ -296,6 +298,8 @@ public:
             m.addSeparator();
             m.addItem (backgroundId, "Background image...");
             m.addItem (resetBackgroundId, "Plain background", panel.hasCustomBackground());
+            m.addItem (textColourId, "Text colour...");
+            m.addItem (resetTextColourId, "Default text colour", panel.getTextColour() != PanelComponent::defaultTextColour());
         }
         else
         {
@@ -354,9 +358,14 @@ public:
             case audioSettingsId:  showAudioSettings(); break;
             case backgroundId:     chooseBackground(); break;
             case resetBackgroundId:
-                panel.setCustomBackground ({}, {});
+                panel.setCustomBackground ({});
                 settings->removeValue ("background");
-                settings->removeValue ("backgroundText");
+                settings->saveIfNeeded();
+                break;
+            case textColourId:     chooseTextColour(); break;
+            case resetTextColourId:
+                panel.setTextColour (PanelComponent::defaultTextColour());
+                settings->removeValue ("textColour");
                 settings->saveIfNeeded();
                 break;
             case muteForDawId:
@@ -368,8 +377,8 @@ public:
         }
     }
 
-    // A picture for the panel, then the colour of the text printed over it
-    // (previewed live). The picture is copied into the data folder.
+    // A picture for the panel, copied into the data folder. (The text
+    // printed on the panel has its own colour: chooseTextColour.)
     void chooseBackground()
     {
         chooser = std::make_unique<juce::FileChooser> ("Background image",
@@ -393,12 +402,9 @@ public:
                     old.deleteFile();
             if (src != dest)
                 src.copyFileTo (dest);
-            const auto previous = panel.hasCustomBackground() ? panel.getTextColour() : juce::Colours::white;
-            panel.setCustomBackground (image, previous);
+            panel.setCustomBackground (image);
             settings->setValue ("background", dest.getFullPathName());
-            settings->setValue ("backgroundText", previous.toString());
             settings->saveIfNeeded();
-            chooseTextColour();
         });
     }
 
@@ -424,7 +430,7 @@ public:
             void changeListenerCallback (juce::ChangeBroadcaster*) override
             {
                 panel.setTextColour (selector.getCurrentColour());
-                settings.setValue ("backgroundText", selector.getCurrentColour().toString());
+                settings.setValue ("textColour", selector.getCurrentColour().toString());
                 settings.saveIfNeeded();
             }
             PanelComponent& panel;
@@ -445,12 +451,14 @@ public:
 
     void restoreBackground()
     {
+        if (settings->containsKey ("textColour"))
+            panel.setTextColour (juce::Colour::fromString (settings->getValue ("textColour")));
         const juce::File f (settings->getValue ("background"));
         if (settings->getValue ("background").isEmpty() || ! f.existsAsFile())
             return;
         auto image = juce::ImageFileFormat::loadFrom (f);
         if (image.isValid())
-            panel.setCustomBackground (image, juce::Colour::fromString (settings->getValue ("backgroundText", "ffffffff")));
+            panel.setCustomBackground (image);
     }
 
     void showSdCard()

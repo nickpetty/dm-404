@@ -77,7 +77,7 @@ static void sp404_audio_frame(void *opaque,
     SP404Audio *a = opaque;
     uint32_t *w = tx[MAIN_LINE];
     int32_t l, r, loop_l = 0, loop_r = 0;
-    int16_t lr[2];
+    int16_t lr[2], buses[6] = { 0 };
 
     if (tx_words < 16) {
         return;
@@ -114,7 +114,7 @@ static void sp404_audio_frame(void *opaque,
     }
     if (a->fx && sp404_fx_active(a->fx)) {
         /* The BMC mixes the buses through its effects. */
-        float stems[8], in[2] = { 0, 0 }, out[2];
+        float stems[8], in[2] = { 0, 0 }, out[2], bus[6];
 
         for (int i = 0; i < 8; i++) {
             stems[i] = sext20(w[i]) / 32768.0f;
@@ -127,13 +127,22 @@ static void sp404_audio_frame(void *opaque,
             in[0] += a->usb_ring[a->usb_head * 2] / 32768.0f;
             in[1] += a->usb_ring[a->usb_head * 2 + 1] / 32768.0f;
         }
-        sp404_fx_process(a->fx, stems, in, out);
+        sp404_fx_process(a->fx, stems, in, out, bus);
         loop_l = lrintf(fmaxf(fminf(out[0], 15.f), -15.f) * 32768.0f);
         loop_r = lrintf(fmaxf(fminf(out[1], 15.f), -15.f) * 32768.0f);
+        for (int i = 0; i < 6; i++) {
+            buses[i] = clip16(lrintf(fmaxf(fminf(bus[i], 15.f), -15.f) * 32768.0f));
+        }
     } else {
         for (int i = 0; i < 8; i += 2) {
             loop_l += sext20(w[i]);
             loop_r += sext20(w[i + 1]);
+        }
+        /* Dry: words 0/1 and 6/7 are DRY, 2/3 BUS 1, 4/5 BUS 2. */
+        buses[0] = clip16(sext20(w[0]) + sext20(w[6]));
+        buses[1] = clip16(sext20(w[1]) + sext20(w[7]));
+        for (int i = 2; i < 6; i++) {
+            buses[i] = clip16(sext20(w[i]));
         }
     }
     l = loop_l + sext20(w[12]) + sext20(w[14]);
@@ -188,7 +197,7 @@ static void sp404_audio_frame(void *opaque,
     lr[0] = clip16(l);
     lr[1] = clip16(r);
     if (a->out) {
-        a->out(a->out_opaque, lr, 1);
+        a->out(a->out_opaque, lr, buses, 1);
     }
     if (a->wav) {
         int16_t le[2] = { cpu_to_le16(lr[0]), cpu_to_le16(lr[1]) };

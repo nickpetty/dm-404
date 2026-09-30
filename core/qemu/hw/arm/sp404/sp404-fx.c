@@ -77,8 +77,9 @@ void sp404_fx_init(SP404Fx *e)
     make = fx_sym(lib, "sp404fx_new");
     e->dt1 = fx_sym(lib, "sp404fx_dt1");
     e->process = fx_sym(lib, "sp404fx_process");
+    e->process_buses = fx_sym(lib, "sp404fx_process_buses");
     e->slot = fx_sym(lib, "sp404fx_slot");
-    if (!version || !make || !e->dt1 || !e->process ||
+    if (!version || !make || !e->dt1 || !e->process || !e->process_buses ||
         version() != SP404FX_VERSION) {
         qemu_log("sp404-fx: %s is not a version %d engine\n", path,
                  SP404FX_VERSION);
@@ -131,7 +132,7 @@ bool sp404_fx_active(SP404Fx *e)
 }
 
 void sp404_fx_process(SP404Fx *e, const float *stems, const float *in,
-                      float *out)
+                      float *out, float *buses)
 {
-    e->process(e->engine, stems, in, out, 1);
+    e->process_buses(e->engine, stems, in, out, buses, 1);
 }

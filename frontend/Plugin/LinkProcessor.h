@@ -9,6 +9,10 @@
 // app over shared memory (DawLink.h). MIDI keeps its place against the
 // audio both ways; the DAW's transport can drive the unit as MIDI clock.
 //
+// Besides the main output, three stereo outputs the DAW can turn on: DRY,
+// BUS 1 and BUS 2, as they reach the unit's master effects (BUS 3/4), each
+// after its own effect: the hardware has no such outputs.
+//
 // The unit runs on its own clock, so the plugin keeps a cushion of its
 // output (reported as latency, for delay compensation) and steers its rate
 // converters by up to 0.5% to hold it, both ways. It cannot render faster
@@ -79,9 +83,11 @@ private:
     double steer = 0.0;
     bool primed = false;
 
-    // Unit to DAW: 48 kHz frames staged for the converters.
-    juce::LagrangeInterpolator outL, outR;
-    std::vector<float> stageL, stageR;
+    // Unit to DAW: 48 kHz frames staged for the converters, all 8 channels
+    // (main, DRY, BUS 1, BUS 2) together so they stay in step.
+    static constexpr int unitCh = dawlink::unitChannels;
+    juce::LagrangeInterpolator outConv[unitCh];
+    std::vector<float> stage[unitCh];
     int staged = 0;
     std::vector<int16_t> raw;
 

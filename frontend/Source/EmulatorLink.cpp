@@ -175,6 +175,17 @@ void EmulatorLink::handleMessage (uint8_t type, const uint8_t* data, int len)
                 onBmcPacket (data);
             break;
 
+        case 0x06:
+            if (onBuses)
+            {
+                int16_t b[1024 * 6];
+                const int n = juce::jmin (len / 12, 1024);
+                for (int i = 0; i < n * 6; ++i)
+                    b[i] = (int16_t) (data[i * 2] | (data[i * 2 + 1] << 8));
+                onBuses (b, n);
+            }
+            break;
+
         case 0x05:
             if (len == 8 && onUnitMidi)
                 onUnitMidi ((uint32_t) (data[0] | data[1] << 8 | data[2] << 16 | (uint32_t) data[3] << 24), data + 4);
@@ -303,6 +314,12 @@ void EmulatorLink::sendUsbAudio (const int16_t* lr, int frames)
         buf[i * 2 + 1] = (uint8_t) ((lr[i] >> 8) & 0xff);
     }
     send (0x87, buf, frames * 4);
+}
+
+void EmulatorLink::sendBusesWanted (bool on)
+{
+    const uint8_t b = on ? 1 : 0;
+    send (0x89, &b, 1);
 }
 
 void EmulatorLink::sendUsbMidi (const std::vector<UsbMidiEvent>& events)

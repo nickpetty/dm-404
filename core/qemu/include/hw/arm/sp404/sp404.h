@@ -350,6 +350,8 @@ typedef struct SP404Fx {
     void (*dt1)(void *fx, const uint8_t *addr, const uint8_t *data, int len);
     void (*process)(void *fx, const float *stems, const float *in,
                     float *out, int frames);
+    void (*process_buses)(void *fx, const float *stems, const float *in,
+                          float *out, float *buses, int frames);
     int (*slot)(void *fx, int slot, int *on);
     uint8_t sysex[64];
     unsigned sysex_len;
@@ -359,9 +361,12 @@ void sp404_fx_init(SP404Fx *e);
 /* A USB-MIDI packet the firmware sends the BMC (SysEx parameter writes). */
 void sp404_fx_midi(SP404Fx *e, const uint8_t *pkt);
 bool sp404_fx_active(SP404Fx *e);
-/* One frame: 8 stems (TX line 3 words 0-7), 2 inputs in, 2 out. */
+/*
+ * One frame: 8 stems (TX line 3 words 0-7), 2 inputs in, 2 out, and 6 into
+ * buses: DRY, BUS 1, BUS 2 before the master effects.
+ */
 void sp404_fx_process(SP404Fx *e, const float *stems, const float *in,
-                      float *out);
+                      float *out, float *buses);
 
 /*
  * The SP-404's audio path as seen from the SAI: TX line 3 carries the
@@ -379,8 +384,11 @@ typedef struct SP404Audio {
     int32_t slot_peak[4][16];
     int peak_frames;
     int rx_peak[2];
-    /* Stereo output, for the frontend link. */
-    void (*out)(void *opaque, const int16_t *lr, int frames);
+    /*
+     * Stereo output, for the frontend link, with the separate buses (DRY,
+     * BUS 1, BUS 2: 6 samples a frame) alongside.
+     */
+    void (*out)(void *opaque, const int16_t *lr, const int16_t *buses, int frames);
     void *out_opaque;
     /* Stereo input from the frontend, played into RX line 0 at in_slot. */
     int16_t in_ring[16384 * 2];
@@ -428,6 +436,8 @@ struct SP404Link {
     uint8_t last_img[SSD1309_WIDTH * SSD1309_HEIGHT / 8];
     uint8_t audio[64 * 4];
     int audio_len;
+    bool buses_on;              /* the frontend wants the separate buses (0x89) */
+    uint8_t buses[64 * 12];
     uint8_t rx[4 + 4096];
     int rx_len;
     void *opaque;
@@ -449,7 +459,8 @@ struct SP404Link {
 };
 
 void sp404_link_init(SP404Link *l, Chardev *chr, SSD1309State *oled);
-void sp404_link_audio(void *opaque, const int16_t *lr, int frames);
+void sp404_link_audio(void *opaque, const int16_t *lr, const int16_t *buses,
+                      int frames);
 void sp404_link_bmc_tx(SP404Link *l, const uint8_t *pkt);
 void sp404_link_send(SP404Link *l, uint8_t type, const void *data,
                      uint16_t len);

@@ -22,10 +22,13 @@
 extern "C" {
 #endif
 
-#define SP404FX_VERSION 1
+#define SP404FX_VERSION 2
 
 /* The number of TX line 3 words the engine takes per frame (the buses). */
 #define SP404FX_STEMS 8
+
+/* The separate outputs: DRY, BUS 1, BUS 2, stereo each (sp404fx_process_buses). */
+#define SP404FX_BUSES 6
 
 typedef struct SP404FX SP404FX;
 
@@ -54,6 +57,15 @@ SP404FX_API void sp404fx_dt1(SP404FX *fx, const uint8_t *addr,
  */
 SP404FX_API void sp404fx_process(SP404FX *fx, const float *stems,
                                  const float *input, float *out, int frames);
+
+/*
+ * The same, and also the buses as they reach the master effects (BUS 3/4):
+ * DRY, BUS 1 and BUS 2, each after its own effect and mute, stereo:
+ * SP404FX_BUSES samples per frame into buses.
+ */
+SP404FX_API void sp404fx_process_buses(SP404FX *fx, const float *stems,
+                                       const float *input, float *out,
+                                       float *buses, int frames);
 
 /* What slot 0-4 is running, for traces: effect ID (0 = bypass) and on/off. */
 SP404FX_API int sp404fx_slot(SP404FX *fx, int slot, int *on);

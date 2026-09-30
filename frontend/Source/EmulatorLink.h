@@ -52,6 +52,10 @@ public:
     // thread, before the volume: what the unit sends over USB; with the
     // number of frames since this start, after these.
     std::function<void (const int16_t* lr, int frames, uint32_t framesAfter)> onAudioOut;
+    // The separate buses (DRY, BUS 1, BUS 2 before the master effects, as
+    // 6 s16 a frame), each block right after its onAudioOut, while asked for.
+    void sendBusesWanted (bool on);
+    std::function<void (const int16_t* buses, int frames)> onBuses;
     // The unit's MIDI out (a USB-MIDI packet whose cable bits say where:
     // UsbMidi.h), stamped with the output frame it happened at; link thread.
     std::function<void (uint32_t frame, const uint8_t* packet)> onUnitMidi;
