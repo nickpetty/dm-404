@@ -1,15 +1,18 @@
 #pragma once
 
 #include "EmulatorLink.h"
+#include "MidiLearn.h"
 #include "Storage.h"
 #include "UsbMidi.h"
 #include "WinMidi.h"
 
 // The unit's MIDI, as the computer's MIDI ports.
 //
-// - Its MIDI IN and OUT jacks: a chosen input and output (a hardware
-//   interface, or loopMIDI and the like). What arrives at the input plays
-//   the unit (cable 9); what the unit sends to its OUT jack goes out.
+// - Its MIDI IN and OUT jacks: chosen inputs (any number: a keyboard and
+//   a controller, say) and an output (a hardware interface, or loopMIDI
+//   and the like). What arrives at the inputs plays the unit (cable 9),
+//   except what MIDI learn has mapped to the panel (MidiLearn.h); what the
+//   unit sends to its OUT jack goes out.
 // - Its USB MIDI: a MIDI device of the app's own, "Doom-404", that other
 //   programs see (cable 8 in, the USB bit out). macOS and Linux make one
 //   for any app (JUCE); on Windows it goes through Windows MIDI Services
@@ -21,40 +24,61 @@ class MidiPorts : private juce::MidiInputCallback
 public:
     static constexpr const char* virtualName = "Doom-404";
 
-    MidiPorts (EmulatorLink& l, juce::PropertiesFile& s) : link (l), settings (s)
+    MidiPorts (EmulatorLink& l, juce::PropertiesFile& s, MidiLearn& ml) : link (l), settings (s), learn (ml)
     {
-        setInput (settings.getValue ("midiIn"));
+        setInputs (juce::StringArray::fromLines (settings.getValue ("midiIn")));
         setOutput (settings.getValue ("midiOut"));
         setVirtual (settings.getBoolValue ("midiVirtual", true));
     }
 
     ~MidiPorts() override
     {
-        if (input != nullptr)
-            input->stop();
+        for (auto& in : inputs)
+            in->stop();
         if (virtualIn != nullptr)
             virtualIn->stop();
         winPort.reset();
     }
 
-    juce::String inputId() const { return input != nullptr ? input->getIdentifier() : juce::String(); }
+    juce::StringArray inputIds() const
+    {
+        juce::StringArray ids;
+        for (auto& in : inputs)
+            ids.add (in->getIdentifier());
+        return ids;
+    }
     juce::String outputId() const
     {
         const juce::ScopedLock sl (outLock);
         return output != nullptr ? output->getIdentifier() : juce::String();
     }
 
-    // Empty: none.
-    void setInput (const juce::String& id)
+    // The inputs that play the unit (none: empty).
+    void setInputs (const juce::StringArray& ids)
     {
-        if (input != nullptr)
-            input->stop();
-        input.reset();
-        if (id.isNotEmpty())
-            if ((input = juce::MidiInput::openDevice (id, this)) != nullptr)
-                input->start();
-        settings.setValue ("midiIn", inputId());
+        for (auto& in : inputs)
+            in->stop();
+        inputs.clear();
+        for (auto& id : ids)
+            if (id.isNotEmpty())
+                if (auto in = juce::MidiInput::openDevice (id, this))
+                {
+                    in->start();
+                    inputs.push_back (std::move (in));
+                }
+        settings.setValue ("midiIn", inputIds().joinIntoString ("\n"));
         settings.saveIfNeeded();
+    }
+
+    // One input in or out of the set.
+    void toggleInput (const juce::String& id)
+    {
+        auto ids = inputIds();
+        if (ids.contains (id))
+            ids.removeString (id);
+        else
+            ids.add (id);
+        setInputs (ids);
     }
 
     void setOutput (const juce::String& id)
@@ -154,7 +178,10 @@ public:
 private:
     void handleIncomingMidiMessage (juce::MidiInput* source, const juce::MidiMessage& m) override
     {
-        fromPort (m, source == virtualIn.get() ? usbmidi::usbCable : usbmidi::dinCable);
+        if (source == virtualIn.get())
+            fromPort (m, usbmidi::usbCable);
+        else if (! learn.take (m))
+            fromPort (m, usbmidi::dinCable);
     }
 
     void fromPort (const juce::MidiMessage& m, uint8_t cable)
@@ -164,7 +191,9 @@ private:
 
     EmulatorLink& link;
     juce::PropertiesFile& settings;
-    std::unique_ptr<juce::MidiInput> input, virtualIn;
+    MidiLearn& learn;
+    std::vector<std::unique_ptr<juce::MidiInput>> inputs;
+    std::unique_ptr<juce::MidiInput> virtualIn;
     std::unique_ptr<juce::MidiOutput> output, virtualOut;
     std::unique_ptr<WinMidiPort> winPort;
     juce::CriticalSection outLock;

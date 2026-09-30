@@ -1,12 +1,14 @@
 #pragma once
 
 #include "EmulatorLink.h"
+#include "MidiLearn.h"
 
 // What a panel control does in the emulated hardware. Which physical
 // control sits where in the key matrix, on which analog input, or which
 // BMC packet a pad sends is still being worked out, so bindings are data
-// (panel.json), set by "learn": right-click a control, then use the matching
-// raw input in the debug drawer.
+// (panel.json), set by "learn": with the debug drawer open, right-click a
+// control, "Learn hardware binding", then use the matching raw input in the
+// drawer. (Right-click's "MIDI learn" is MidiLearn.h's, for MIDI devices.)
 struct Binding
 {
     enum class Kind { none, key, analog, bmc };
@@ -67,6 +69,28 @@ public:
     // Learn: the control waiting for a binding, if any.
     PanelControl* getLearning() { return learning; }
     void learn (const Binding&);
+    // Offer "Learn hardware binding" on right-click (the debug drawer is open).
+    void setBindingLearn (bool on)
+    {
+        bindingLearn = on;
+        if (! on)
+            learning = nullptr;
+        repaint();
+    }
+
+    // MIDI learn (MidiLearn.h): right-click asks to start it for a control
+    // (empty: stop) or to forget a control's mappings; midiMapping says what
+    // a control answers to. The panel shows the control learning and, for
+    // a moment, what it learnt.
+    std::function<void (const juce::String& control)> onMidiLearn, onMidiForget;
+    std::function<juce::String (const juce::String& control)> midiMapping;
+    void setMidiLearning (const juce::String& control);
+    void showMidiLearnt (const juce::String& control, const juce::String& what);
+    // A mapped MIDI message: works the control as the mouse would. Keys and
+    // pads are held while the note (or a controller at 64 or more) is;
+    // pads take the note's velocity; knobs follow a controller; VALUE
+    // turns with a controller and pushes with a note.
+    void fromMidi (const juce::String& control, bool note, int value, MidiLearn::Mode mode);
 
     // An LED packet from the firmware: "01 page idx value". Every page
     // writes the same LED and the latest write wins; the page is how it
@@ -120,7 +144,11 @@ private:
     PanelControl* learning = nullptr;
     float dragStartValue = 0;
     int encoderSent = 0;
-    bool shiftLatched = false, shiftKeyboard = false;
+    bool shiftLatched = false, shiftKeyboard = false, shiftMidi = false;
+    bool bindingLearn = false;
+    juce::String midiLearning, midiMessage;     // learning; what was learnt, shown a while
+    uint32_t midiMessageUntil = 0;
+    std::map<juce::String, int> lastMidiValue;  // VALUE from an absolute knob
     void updateShift();
     void releaseShiftLatch();
     bool encoderMoved = false;

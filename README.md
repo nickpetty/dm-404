@@ -31,7 +31,10 @@ with or endorsed by Roland (see [Licensing](#licensing)).
     window for copying files on and off it by drag-and-drop.
   - Backup and restore of the internal drive.
 - **MIDI.**
-  - The unit's MIDI IN/OUT jacks, mapped to any MIDI ports on your computer.
+  - The unit's MIDI IN/OUT jacks, mapped to any MIDI ports on your computer
+    (several inputs at once: a keyboard and a controller).
+  - MIDI learn: right-click any key, pad or knob and move a control on your
+    MIDI device to work it from there.
   - A "Doom-404" MIDI port of the app's own: built in on macOS and Linux; on
     Windows it needs Windows MIDI Services (see below).
   - MIDI clock in and out; the unit follows tempo.
@@ -170,10 +173,17 @@ the Ghidra scripts, `tools/fxmap.py`, `tools/usbip_probe.py`, and more).
   open the data folder.
 - **View menu**: the debug drawer (<kbd>`</kbd>), background image, text
   colour.
+- **MIDI learn**: right-click a control, choose *MIDI learn*, then press a
+  key or pad or move a knob on your MIDI device (chosen under Options >
+  MIDI IN). Keys and pads follow notes (pads with their velocity) or
+  buttons; knobs follow a knob (CC); VALUE turns with a knob or an endless
+  encoder and pushes with a note. Mapped notes and controls work the panel
+  instead of playing the unit; the rest still play it. Right-click again
+  to forget a mapping.
 - **Options menu**:
   - audio device;
   - muting the app while a DAW plugin plays the unit;
-  - the MIDI IN/OUT jack ports;
+  - the MIDI IN/OUT jack ports, and forgetting all MIDI learn mappings;
   - the "Doom-404" MIDI port.
 - **In a DAW**, put *Doom-404 Link* on a track while the app runs.
 

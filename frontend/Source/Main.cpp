@@ -115,7 +115,28 @@ public:
         link.onAudioOut = [this] (const int16_t* lr, int frames, uint32_t after) { daw->unitOutput (lr, frames, after); };
         link.onBuses = [this] (const int16_t* buses, int frames) { daw->unitBuses (buses, frames); };
         // The unit's MIDI out: USB to the plugin, the OUT jack to a MIDI port.
-        midiPorts = std::make_unique<MidiPorts> (link, *settings);
+        // MIDI learn: MIDI devices on the panel's controls.
+        midiLearn = std::make_unique<MidiLearn> (*settings);
+        midiLearn->onControl = [this] (const juce::String& c, bool note, int value, MidiLearn::Mode mode)
+        {
+            panel.fromMidi (c, note, value, mode);
+        };
+        midiLearn->onLearnt = [this] (const juce::String& c, const juce::String& what)
+        {
+            panel.showMidiLearnt (c, what);
+        };
+        panel.onMidiLearn = [this] (const juce::String& c)
+        {
+            midiLearn->learn (c);
+            panel.setMidiLearning (c);
+            if (c.isNotEmpty() && midiPorts->inputIds().isEmpty())
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "MIDI learn",
+                                                        "No MIDI input is chosen: pick your MIDI device in "
+                                                        "Options > MIDI IN, then move a control on it.");
+        };
+        panel.onMidiForget = [this] (const juce::String& c) { midiLearn->forget (c); };
+        panel.midiMapping = [this] (const juce::String& c) { return midiLearn->describe (c); };
+        midiPorts = std::make_unique<MidiPorts> (link, *settings, *midiLearn);
         link.onUnitMidi = [this] (uint32_t frame, const uint8_t* p)
         {
             if ((p[0] >> 4) & usbmidi::usbBit)
@@ -153,6 +174,7 @@ public:
         startTimerHz (60);
         setSize (1280, 900);
         setWantsKeyboardFocus (true);
+        panel.setBindingLearn (settings->getBoolValue ("debugShown", true));
         if (! settings->getBoolValue ("debugShown", true))
             setDebugShown (false);
     }
@@ -202,6 +224,7 @@ public:
     void setDebugShown (bool shown)
     {
         debugShown = shown;
+        panel.setBindingLearn (shown);
         for (juce::Component* c : { (juce::Component*) &debug, (juce::Component*) &status, (juce::Component*) &audioButton })
             c->setVisible (shown);
         settings->setValue ("debugShown", shown);
@@ -272,7 +295,7 @@ public:
     // The menu bar.
     enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
                    debugDrawerId, audioSettingsId, muteForDawId, backgroundId, resetBackgroundId,
-                   textColourId, resetTextColourId, virtualMidiId, midiServicesId,
+                   textColourId, resetTextColourId, virtualMidiId, midiServicesId, forgetMidiId,
                    midiInBase = 1000, midiOutBase = 2000 };     // + device index + 1 (0: none)
 
     juce::StringArray getMenuBarNames() override { return { "Unit", "View", "Options" }; }
@@ -307,20 +330,23 @@ public:
             m.addItem (muteForDawId, "Mute this app while a DAW plugin plays the unit", true, muteForDaw.load());
             m.addSeparator();
             // The unit's MIDI jacks, as the computer's MIDI ports.
+            // Inputs: any number (a keyboard and a controller); output: one.
             auto ports = [] (juce::PopupMenu& sub, int base, const juce::Array<juce::MidiDeviceInfo>& list,
-                             const juce::String& current)
+                             const juce::StringArray& current)
             {
                 sub.addItem (base, "None", true, current.isEmpty());
                 for (int i = 0; i < list.size(); ++i)
-                    sub.addItem (base + 1 + i, list[i].name, true, list[i].identifier == current);
+                    sub.addItem (base + 1 + i, list[i].name, true, current.contains (list[i].identifier));
             };
             midiInList = juce::MidiInput::getAvailableDevices();
             midiOutList = juce::MidiOutput::getAvailableDevices();
             juce::PopupMenu in, out;
-            ports (in, midiInBase, midiInList, midiPorts->inputId());
-            ports (out, midiOutBase, midiOutList, midiPorts->outputId());
-            m.addSubMenu ("MIDI IN (plays the unit)", in);
+            ports (in, midiInBase, midiInList, midiPorts->inputIds());
+            const auto outId = midiPorts->outputId();
+            ports (out, midiOutBase, midiOutList, outId.isEmpty() ? juce::StringArray() : juce::StringArray (outId));
+            m.addSubMenu ("MIDI IN (plays the unit; MIDI learn)", in);
             m.addSubMenu ("MIDI OUT (from the unit)", out);
+            m.addItem (forgetMidiId, "Forget all MIDI learn mappings", ! midiLearn->empty());
             // Its USB MIDI as a MIDI device of its own; what is wrong, if anything.
             const auto portStatus = midiPorts->virtualStatus();
             m.addItem (virtualMidiId, "MIDI port \"Doom-404\"" + (portStatus.isEmpty() ? juce::String() : " (" + portStatus + ")"),
@@ -336,7 +362,10 @@ public:
         if (id >= midiInBase && id < midiOutBase)
         {
             const int i = id - midiInBase - 1;
-            midiPorts->setInput (i >= 0 && i < midiInList.size() ? midiInList[i].identifier : juce::String());
+            if (i >= 0 && i < midiInList.size())
+                midiPorts->toggleInput (midiInList[i].identifier);
+            else
+                midiPorts->setInputs ({});
             return;
         }
         if (id >= midiOutBase)
@@ -370,6 +399,7 @@ public:
                 break;
             case textColourId:     chooseTextColour(); break;
             case virtualMidiId:    midiPorts->setVirtual (! midiPorts->wantsVirtual()); break;
+            case forgetMidiId:     midiLearn->forgetAll(); break;
             case midiServicesId:   juce::URL ("https://aka.ms/midi").launchInDefaultBrowser(); break;
             case resetTextColourId:
                 panel.setTextColour (PanelComponent::defaultTextColour());
@@ -714,7 +744,7 @@ private:
                             + "   late callbacks " + juce::String (lateCallbacks.load())
                             + (daw != nullptr && daw->pluginConnected() ? "   DAW plugin connected" : "")
                             + "   device " + (dev ? dev->getName() + " @ " + juce::String (dev->getCurrentSampleRate()) : juce::String ("none"))
-                            + "   right-click a control to learn its binding",
+                            + "   right-click a control: MIDI learn, or learn its hardware binding",
                         juce::dontSendNotification);
     }
 
@@ -845,6 +875,7 @@ private:
 
     EmulatorLink link;
     std::unique_ptr<DawBridge> daw;
+    std::unique_ptr<MidiLearn> midiLearn;         // before midiPorts, which uses it
     std::unique_ptr<MidiPorts> midiPorts;
     juce::String lastPortStatus { "?" };
 

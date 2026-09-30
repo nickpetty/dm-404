@@ -351,7 +351,7 @@ void PanelComponent::paint (juce::Graphics& g)
     for (auto& c : controls)
     {
         auto r = toScreen (c.bounds);
-        const bool learningThis = &c == learning;
+        const bool learningThis = &c == learning || (midiLearning.isNotEmpty() && c.name == midiLearning);
         switch (c.type)
         {
             case PanelControl::Type::knob:
@@ -491,6 +491,104 @@ void PanelComponent::paint (juce::Graphics& g)
             g.drawRoundedRectangle (r.expanded (2.0f), 4.0f, learningThis ? 2.5f : 1.0f);
         }
     }
+
+    // MIDI learn: what to do, then what it learnt.
+    juce::String note;
+    if (midiLearning.isNotEmpty())
+        note = "MIDI learn: " + midiLearning + ". Press a key or move a knob on your MIDI device (right-click to stop)";
+    else if (midiMessage.isNotEmpty() && juce::Time::getMillisecondCounter() < midiMessageUntil)
+        note = midiMessage;
+    if (note.isNotEmpty())
+    {
+        auto band = getLocalBounds().toFloat().removeFromBottom (28.0f).reduced (8.0f, 2.0f);
+        g.setColour (juce::Colours::black.withAlpha (0.75f));
+        g.fillRoundedRectangle (band, 6.0f);
+        g.setColour (juce::Colours::white);
+        g.setFont (juce::FontOptions (14.0f));
+        g.drawFittedText (note, band.toNearestInt().reduced (8, 0), juce::Justification::centred, 1);
+    }
+}
+
+void PanelComponent::setMidiLearning (const juce::String& control)
+{
+    midiLearning = control;
+    repaint();
+}
+
+void PanelComponent::showMidiLearnt (const juce::String& control, const juce::String& what)
+{
+    midiLearning.clear();
+    midiMessage = control + " answers to " + what;
+    midiMessageUntil = juce::Time::getMillisecondCounter() + 3000;
+    repaint();
+    juce::Timer::callAfterDelay (3100, [safe = juce::Component::SafePointer<PanelComponent> (this)]
+    {
+        if (safe != nullptr)
+            safe->repaint();
+    });
+}
+
+void PanelComponent::fromMidi (const juce::String& control, bool note, int value, MidiLearn::Mode mode)
+{
+    PanelControl* c = nullptr;
+    for (auto& k : controls)
+        if (k.name == control)
+            c = &k;
+    if (c == nullptr)
+        return;
+    if (c->name == "VALUE")
+    {
+        if (note)
+        {
+            // A note pushes it (the push switch is a key).
+            if (c->binding.kind == Binding::Kind::key)
+                link.sendKey (c->binding.row, c->binding.col, value > 0);
+            if (value == 0)
+                releaseShiftLatch();
+            return;
+        }
+        int step = 0;
+        if (mode == MidiLearn::Mode::twosComplement)
+            step = value < 64 ? value : value - 128;
+        else if (mode == MidiLearn::Mode::offset)
+            step = value - 64;
+        else
+        {
+            auto it = lastMidiValue.find (control);
+            step = it != lastMidiValue.end() ? value - it->second : 0;
+            lastMidiValue[control] = value;
+        }
+        if (step != 0)
+        {
+            link.sendEncoder (step);
+            c->value = std::fmod (c->value + 0.04f * (float) step + 10.0f, 1.0f);
+            repaint();
+        }
+        return;
+    }
+    if (c->type == PanelControl::Type::knob)
+    {
+        if (! note)
+            setKnob (*c, (float) value / 127.0f);
+        return;
+    }
+    const bool down = note ? value > 0 : value >= 64;
+    if (c->name == "SHIFT")
+    {
+        shiftMidi = down;
+        updateShift();
+        repaint();
+        return;
+    }
+    if (down == c->pressed)
+        return;
+    if (down)
+        press (*c, true, note ? (float) value / 127.0f : 1.0f);
+    else
+    {
+        press (*c, false);
+        releaseShiftLatch();
+    }
 }
 
 juce::String PanelComponent::getTooltip()
@@ -499,14 +597,14 @@ juce::String PanelComponent::getTooltip()
     if (c == nullptr)
         return {};
     if (c->name == "SHIFT")
-        return "Click to hold, or hold the Shift key";
+        return "Click to hold, or hold the Shift key; right-click for MIDI learn";
     if (c->name == "VALUE")
-        return "Drag or scroll to turn, click to push";
+        return "Drag or scroll to turn, click to push; right-click for MIDI learn";
     if (c->type == PanelControl::Type::knob)
-        return "Drag or scroll to turn";
+        return "Drag or scroll to turn; right-click for MIDI learn";
     if (c->type == PanelControl::Type::button)
-        return c->latched ? "Held: click to release" : "Ctrl-click to hold";
-    return {};
+        return c->latched ? "Held: click to release" : "Ctrl-click to hold; right-click for MIDI learn";
+    return "Right-click for MIDI learn";
 }
 
 PanelControl* PanelComponent::hit (juce::Point<float> p)
@@ -570,7 +668,7 @@ void PanelComponent::updateShift()
     for (auto& c : controls)
         if (c.name == "SHIFT")
         {
-            const bool held = shiftLatched || shiftKeyboard;
+            const bool held = shiftLatched || shiftKeyboard || shiftMidi;
             if (held != c.pressed)
                 press (c, held);
         }
@@ -604,8 +702,36 @@ void PanelComponent::mouseDown (const juce::MouseEvent& e)
         return;
     if (e.mods.isPopupMenu())
     {
-        learning = (learning == c) ? nullptr : c;
-        repaint();
+        const auto name = c->name;
+        const auto mapped = midiMapping ? midiMapping (name) : juce::String();
+        juce::PopupMenu m;
+        m.addSectionHeader (name);
+        if (midiLearning == name)
+            m.addItem (1, "Stop MIDI learn");
+        else
+            m.addItem (1, "MIDI learn (then press a key or move a knob on your MIDI device)");
+        m.addItem (2, "Forget MIDI" + (mapped.isNotEmpty() ? " (" + mapped + ")" : juce::String()), mapped.isNotEmpty());
+        if (bindingLearn)
+        {
+            m.addSeparator();
+            m.addItem (3, "Learn hardware binding (debug drawer)", true, learning == c);
+        }
+        m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (
+                             juce::Rectangle<int> (e.getScreenPosition(), e.getScreenPosition()).expanded (1)),
+                         [safe = juce::Component::SafePointer<PanelComponent> (this), name] (int r)
+        {
+            if (safe == nullptr)
+                return;
+            if (r == 1 && safe->onMidiLearn)
+                safe->onMidiLearn (safe->midiLearning == name ? juce::String() : name);
+            else if (r == 2 && safe->onMidiForget)
+                safe->onMidiForget (name);
+            else if (r == 3)
+                for (auto& c2 : safe->controls)
+                    if (c2.name == name)
+                        safe->learning = (safe->learning == &c2) ? nullptr : &c2;
+            safe->repaint();
+        });
         return;
     }
     if (c->name == "SHIFT")

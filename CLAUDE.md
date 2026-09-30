@@ -181,7 +181,11 @@ frame it happened at and the plugin emits it at that frame's sample. The
 firmware reacts within ~4 ms. The plugin sends MIDI clock, Song Position
 and Start/Continue/Stop from the DAW transport; the unit follows it as it
 is (its tempo DT1 went to 140.0). The standalone app has the MIDI IN/OUT
-jacks as computer MIDI ports (Options menu, cable 9 in, bit 0 out).
+jacks as computer MIDI ports (Options menu, cable 9 in, bit 0 out;
+any number of inputs). MIDI learn (Frontend/Source/MidiLearn.h, right-click a control) maps notes and
+CCs from those inputs to panel controls, by name, in the settings (midiMap); mapped messages work the
+panel (PanelComponent::fromMidi) and do not reach the unit. Right-click's "Learn hardware binding"
+(panel.json, from the debug drawer's raw inputs) is offered only while the drawer is open.
 It also makes a MIDI port named "Doom-404" (never the Roland/SP-404
 name) as the unit's USB MIDI (cable 8 in, bit 3 out): JUCE createNewDevice
 on macOS and Linux; on Windows, Frontend/Source/WinMidi.cpp through Windows
