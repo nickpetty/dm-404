@@ -11,6 +11,8 @@
  *                 picture changes, at most every 20 ms.
  *   0x02 AUDIO    stereo 16-bit little-endian frames at 48 kHz.
  *   0x03 BMC      4-byte packets the firmware sent the BMC (LEDs, MIDI).
+ *   0x04 SDCARD   the slot after an 0x86: card in (u8), then an error
+ *                 message (UTF-8, empty if it worked).
  *
  * Frontend to emulator:
  *   0x81 KEY      row (u8, 0-7), column (u8, 0-6), pressed (u8)
@@ -18,6 +20,8 @@
  *   0x83 BMC      a 4-byte packet, as if from the BMC (SHIFT)
  *   0x84 ENCODER  detents to turn the VALUE encoder (s8, + clockwise)
  *   0x85 AUDIO    input audio, stereo 16-bit LE frames at 48 kHz
+ *   0x86 SDCARD   no payload: take the SD card out; else the path of a raw
+ *                 image (UTF-8) to put in. Answered with 0x04.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -32,8 +36,8 @@
 #define DISPLAY_PERIOD_NS   (20 * 1000 * 1000)
 #define AUDIO_BLOCK         64
 
-static void link_send(SP404Link *l, uint8_t type, const void *data,
-                      uint16_t len)
+void sp404_link_send(SP404Link *l, uint8_t type, const void *data,
+                     uint16_t len)
 {
     uint8_t hdr[4] = { type, 0, len & 0xff, len >> 8 };
 
@@ -61,7 +65,7 @@ static void link_display_tick(void *opaque)
     if (memcmp(img, l->last_img, sizeof(img)) || l->resend) {
         memcpy(l->last_img, img, sizeof(img));
         l->resend = false;
-        link_send(l, 0x01, img, sizeof(img));
+        sp404_link_send(l, 0x01, img, sizeof(img));
     }
     timer_mod(l->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
               DISPLAY_PERIOD_NS);
@@ -75,7 +79,7 @@ void sp404_link_audio(void *opaque, const int16_t *lr, int frames)
         stw_le_p(&l->audio[l->audio_len * 4], lr[2 * i]);
         stw_le_p(&l->audio[l->audio_len * 4 + 2], lr[2 * i + 1]);
         if (++l->audio_len == AUDIO_BLOCK) {
-            link_send(l, 0x02, l->audio, AUDIO_BLOCK * 4);
+            sp404_link_send(l, 0x02, l->audio, AUDIO_BLOCK * 4);
             l->audio_len = 0;
         }
     }
@@ -83,7 +87,7 @@ void sp404_link_audio(void *opaque, const int16_t *lr, int frames)
 
 void sp404_link_bmc_tx(SP404Link *l, const uint8_t *pkt)
 {
-    link_send(l, 0x03, pkt, 4);
+    sp404_link_send(l, 0x03, pkt, 4);
 }
 
 static void link_message(SP404Link *l, uint8_t type, const uint8_t *p,
@@ -114,6 +118,14 @@ static void link_message(SP404Link *l, uint8_t type, const uint8_t *p,
                 lr[i] = (int16_t)lduw_le_p(p + i * 2);
             }
             l->audio_in(l->opaque, lr, frames);
+        }
+        break;
+    case 0x86:
+        if (l->sdcard) {
+            g_autofree char *path = len ? g_strndup((const char *)p, len)
+                                        : NULL;
+
+            l->sdcard(l->opaque, path);
         }
         break;
     case 0x84:

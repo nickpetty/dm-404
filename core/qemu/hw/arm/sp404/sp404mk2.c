@@ -37,6 +37,7 @@
 #include "system/blockdev.h"
 #include "system/block-backend.h"
 #include "chardev/char.h"
+#include "qapi/qapi-commands-block.h"
 #include "hw/arm/sp404/sp404.h"
 
 /* The APP1 image's vector table: initial SP and reset handler. */
@@ -108,6 +109,14 @@ static const struct {
 } sp404_usdhc[] = {
     { 0x402c0000, 110 }, { 0x402c4000, 111 },
 };
+
+/*
+ * The SD slot's card detect: GPIO1 pin 18, low while a card is in. The
+ * firmware polls it (FUN_00008bce, ~20 times a second) and mounts or drops
+ * A: when it changes.
+ */
+#define SP404_SD_CD_GPIO        0       /* GPIO1 */
+#define SP404_SD_CD_BIT         18
 
 /* The OLED: an SSD1309 on LPSPI4 CS0, D/C on GPIO2 pin 1, RES# on pin 10. */
 #define SP404_OLED_LPSPI        3
@@ -203,6 +212,8 @@ typedef struct SP404Machine {
     SP404BMC bmc;
     DeviceState *oled;
     SDHCIState usdhc[2];
+    SDBus *sd_bus;              /* the SD slot's bus (uSDHC1) */
+    char *sd_drive;             /* its drive's name, for eject and change */
     IMXRTSAI sai[3];
     IMXRTPIT pit;
     IMXRTXBAR xbar;
@@ -381,6 +392,43 @@ static uint32_t sp404_key_inputs(void *opaque, uint32_t in)
     in = deposit32(in, SP404_ENC_A_BIT, 1, !(ab & 1));
     in = deposit32(in, SP404_ENC_B_BIT, 1, !(ab & 2));
     return in;
+}
+
+/* GPIO1: the SD card detect follows whether the slot holds a card. */
+static uint32_t sp404_gpio1_inputs(void *opaque, uint32_t in)
+{
+    SP404Machine *m = opaque;
+
+    return deposit32(in, SP404_SD_CD_BIT, 1,
+                     !(m->sd_bus && sdbus_get_inserted(m->sd_bus)));
+}
+
+/*
+ * The frontend takes the SD card out (path NULL) or puts one in (an image
+ * file), as eject / change would from the monitor; then it hears back.
+ */
+static void sp404_link_sdcard(void *opaque, const char *path)
+{
+    SP404Machine *m = opaque;
+    Error *err = NULL;
+    uint8_t reply[256];
+    int n;
+
+    if (!m->sd_drive) {
+        error_setg(&err, "no SD card slot (start with -drive if=sd,index=0)");
+    } else if (!path) {
+        qmp_eject(m->sd_drive, NULL, true, true, &err);
+    } else {
+        qmp_blockdev_change_medium(m->sd_drive, NULL, path, "raw", true, true,
+                                   false, 0, &err);
+    }
+    reply[0] = m->sd_bus && sdbus_get_inserted(m->sd_bus);
+    n = snprintf((char *)reply + 1, sizeof(reply) - 1, "%s",
+                 err ? error_get_pretty(err) : "");
+    sp404_link_send(&m->link, 0x04, reply, 1 + MIN(n, (int)sizeof(reply) - 2));
+    if (err) {
+        warn_report_err(err);
+    }
 }
 
 static void sp404_link_key(void *opaque, int row, int col, bool pressed)
@@ -659,6 +707,11 @@ static void sp404_init(MachineState *machine)
         if (di) {
             DeviceState *card = qdev_new(i == 1 ? TYPE_EMMC : TYPE_SD_CARD);
 
+            if (i == 0) {
+                m->sd_bus = SD_BUS(qdev_get_child_bus(DEVICE(sbd), "sd-bus"));
+                m->sd_drive = g_strdup(blk_name(blk_by_legacy_dinfo(di)));
+            }
+
             qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(di),
                                     &error_fatal);
             qdev_realize_and_unref(card, qdev_get_child_bus(DEVICE(sbd),
@@ -744,6 +797,8 @@ static void sp404_init(MachineState *machine)
     m->enc_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sp404_encoder_tick, m);
     m->gpio[SP404_KEY_GPIO].in_hook = sp404_key_inputs;
     m->gpio[SP404_KEY_GPIO].in_hook_opaque = m;
+    m->gpio[SP404_SD_CD_GPIO].in_hook = sp404_gpio1_inputs;
+    m->gpio[SP404_SD_CD_GPIO].in_hook_opaque = m;
 
     if (m->link_id) {
         Chardev *chr = qemu_chr_find(m->link_id);
@@ -758,6 +813,7 @@ static void sp404_init(MachineState *machine)
         m->link.bmc_rx = sp404_link_bmc;
         m->link.encoder = sp404_link_encoder;
         m->link.audio_in = sp404_link_audio_in;
+        m->link.sdcard = sp404_link_sdcard;
         sp404_link_init(&m->link, chr, SSD1309(m->oled));
         m->bmc.link = &m->link;
         m->audio.out = sp404_link_audio;

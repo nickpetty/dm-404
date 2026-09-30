@@ -125,6 +125,32 @@ Test runs (tools/link.py) open the eMMC with snapshot=on: the firmware
 keeps state there, and runs must not leak into each other or share a
 writable image.
 
+## Storage (the app)
+
+Nothing of Roland's or the user's ships: on first run the app asks for the
+System Program (Roland's zip or SP404MKII_APP1.bin; sha256 checked, other
+versions allowed with a warning). Frontend/Source/Storage.cpp keeps the unit
+in %LOCALAPPDATA%\Doom-404: firmware/, system.bin (the NOR flash),
+internal.img (B:, 16 GB sparse exFAT, no partition table) and sdcard.img
+(A:, 16 GB sparse FAT32 with an MBR, IMPORT and EXPORT made). A dev
+checkout's firmware/, build/flash.bin and build/emmc.img are copied over
+once; tools/ still use build/. The firmware boots from blank drives (an
+empty project). QEMU writes the images directly, so there is nothing to
+save at exit.
+
+The SD slot: card detect is GPIO1 pin 18, low with a card in, polled by
+FUN_00008bce ~20/s; the machine derives it from the slot's SD bus, so eject
+and insert (link 0x86, answered by 0x04; or the monitor's eject/change on
+drive sd0) show up in the firmware ("No SD Card!"). The slot always exists
+(`-drive if=sd,index=0` with no file = empty). mkdisk.py's (pyfatfs) FAT32
+cards read "Unsupported SD Card!"; FatFs-made ones (FAT32 or exFAT, with or
+without an MBR) work. Frontend/Source/FatImage.cpp wraps FatFs (vendored in
+frontend/ThirdParty/fatfs, R0.15a) for the SD card window (browse, drag in
+and out, delete, format; changing the card takes it out of the unit, closing
+the window puts it back) and internal-drive backup/restore (to/from a folder
+of files). `sh tools/build_fatimg.sh` builds the same code as a CLI,
+build/fatimg.exe (create/info/ls/add/get/rm), for making test cards.
+
 ## Working here
 
 - `sh tools/build.sh` then `sh tools/run.sh [secs]` (headless boot with a

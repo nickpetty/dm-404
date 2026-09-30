@@ -1,24 +1,14 @@
 #include "EmulatorLink.h"
+#include "Storage.h"
 
 EmulatorLink::Paths EmulatorLink::defaultPaths()
 {
-    // Walk up from the executable to the repo root (the folder holding
-    // firmware/ and build/).
-    auto dir = juce::File::getSpecialLocation (juce::File::currentExecutableFile).getParentDirectory();
-    while (dir.exists() && ! dir.getChildFile ("firmware").isDirectory())
-    {
-        auto parent = dir.getParentDirectory();
-        if (parent == dir)
-            break;
-        dir = parent;
-    }
-
     Paths p;
-    p.qemu = dir.getChildFile ("build/qemu/qemu-system-arm.exe");
-    p.firmware = dir.getChildFile ("firmware/SP404MKII_APP1.bin");
-    p.flash = dir.getChildFile ("build/flash.bin");
-    p.emmc = dir.getChildFile ("build/emmc.img");
-    p.sd = dir.getChildFile ("build/sd.img");
+    p.qemu = Storage::qemu();
+    p.firmware = Storage::firmware();
+    p.flash = Storage::systemFlash();
+    p.emmc = Storage::internalDrive();
+    p.sd = Storage::sdCard();
     return p;
 }
 
@@ -41,20 +31,22 @@ juce::String EmulatorLink::start (const Paths& p)
     juce::StringArray args;
     args.add (p.qemu.getFullPathName());
     args.add ("-M");
-    args.add ("sp404mk2,flash=" + p.flash.getFullPathName() + ",link=link");
+    args.add ("sp404mk2,flash=" + p.flash.getFullPathName().replace (",", ",,") + ",link=link");
     args.add ("-bios");
     args.add (p.firmware.getFullPathName());
     args.add ("-chardev");
     args.add ("socket,id=link,host=127.0.0.1,port=" + juce::String (port) + ",server=on,wait=on");
-    if (p.sd.existsAsFile())
-    {
-        args.add ("-drive");
-        args.add ("if=sd,index=0,format=raw,file=" + p.sd.getFullPathName());
-    }
+    // QEMU option values double their commas.
+    auto file = [] (const juce::File& f) { return f.getFullPathName().replace (",", ",,"); };
+    // The SD slot is always there, so a card can go in later; empty is a
+    // drive without a file.
+    args.add ("-drive");
+    args.add (p.sdInserted && p.sd.existsAsFile() ? "if=sd,index=0,format=raw,file=" + file (p.sd)
+                                                  : juce::String ("if=sd,index=0"));
     if (p.emmc.existsAsFile())
     {
         args.add ("-drive");
-        args.add ("if=sd,index=1,format=raw,file=" + p.emmc.getFullPathName());
+        args.add ("if=sd,index=1,format=raw,file=" + file (p.emmc));
     }
     args.add ("-nographic");
     args.add ("-monitor");
@@ -172,6 +164,11 @@ void EmulatorLink::handleMessage (uint8_t type, const uint8_t* data, int len)
                 onBmcPacket (data);
             break;
 
+        case 0x04:
+            if (len >= 1 && onSdCard)
+                onSdCard (data[0] != 0, juce::String::fromUTF8 ((const char*) data + 1, len - 1));
+            break;
+
         default:
             break;
     }
@@ -278,6 +275,12 @@ void EmulatorLink::InputSender::run()
             link.send (0x85, buf, n * 4);
         }
     }
+}
+
+void EmulatorLink::sendSdCard (const juce::File& image)
+{
+    const auto path = image == juce::File() ? juce::String() : image.getFullPathName();
+    send (0x86, path.toRawUTF8(), (int) path.getNumBytesAsUTF8());
 }
 
 void EmulatorLink::sendEncoder (int detents)

@@ -1,4 +1,6 @@
 #include "PanelComponent.h"
+#include "Storage.h"
+#include "BinaryData.h"
 
 namespace
 {
@@ -181,13 +183,17 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
 
 juce::File PanelComponent::bindingsFile()
 {
-    auto root = EmulatorLink::defaultPaths().firmware.getParentDirectory().getParentDirectory();
-    return root.getChildFile ("frontend/panel.json");
+    // In a development checkout, the repo's copy (learn writes it); the
+    // app carries the same file built in.
+    auto root = Storage::devRoot();
+    return root == juce::File() ? juce::File() : root.getChildFile ("frontend/panel.json");
 }
 
 void PanelComponent::loadBindings()
 {
-    auto v = juce::JSON::parse (bindingsFile());
+    auto file = bindingsFile();
+    auto v = file.existsAsFile() ? juce::JSON::parse (file)
+                                 : juce::JSON::parse (juce::String::fromUTF8 (BinaryData::panel_json, BinaryData::panel_jsonSize));
     for (auto& c : controls)
         if (v.hasProperty (juce::Identifier (c.name)))
         {
@@ -200,6 +206,8 @@ void PanelComponent::loadBindings()
 
 void PanelComponent::saveBindings() const
 {
+    if (bindingsFile() == juce::File())
+        return;
     auto* o = new juce::DynamicObject();
     for (auto& c : controls)
         if (c.binding.kind != Binding::Kind::none || c.led >= 0)

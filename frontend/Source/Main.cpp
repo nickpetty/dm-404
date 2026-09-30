@@ -1,7 +1,66 @@
 #include "DebugPanel.h"
+#include "SdCardWindow.h"
+#include "Storage.h"
+
+// First run: Roland's System Program is not ours to ship, so the user
+// points the app at the one they downloaded.
+class SetupComponent : public juce::Component
+{
+public:
+    std::function<void (const juce::File&)> onChosen;
+
+    SetupComponent()
+    {
+        text.setJustificationType (juce::Justification::centred);
+        text.setColour (juce::Label::textColourId, juce::Colour (0xffd8d8d0));
+        text.setFont (juce::FontOptions (17.0f));
+        text.setText ("Doom-404 runs Roland's own SP-404MKII firmware, which is not included.\n\n"
+                      "Download the SP-404MKII System Program (version 5.52) from roland.com, "
+                      "then choose the zip you downloaded, or the SP404MKII_APP1.bin inside it.\n\n"
+                      "A blank internal drive and SD card are made for you.",
+                      juce::dontSendNotification);
+        addAndMakeVisible (text);
+        addAndMakeVisible (choose);
+        addAndMakeVisible (error);
+        error.setJustificationType (juce::Justification::centred);
+        error.setColour (juce::Label::textColourId, juce::Colour (0xffff5a1f));
+        choose.onClick = [this]
+        {
+            chooser = std::make_unique<juce::FileChooser> ("SP-404MKII System Program",
+                                                           juce::File::getSpecialLocation (juce::File::userHomeDirectory)
+                                                               .getChildFile ("Downloads"),
+                                                           "*.zip;*.bin");
+            chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                                  [this] (const juce::FileChooser& fc)
+                                  {
+                                      if (fc.getResult() != juce::File() && onChosen)
+                                          onChosen (fc.getResult());
+                                  });
+        };
+    }
+
+    void setError (const juce::String& e) { error.setText (e, juce::dontSendNotification); }
+
+    void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xf01c1d20)); }
+
+    void resized() override
+    {
+        auto r = getLocalBounds().withSizeKeepingCentre (juce::jmin (560, getWidth() - 40), 320);
+        text.setBounds (r.removeFromTop (190));
+        choose.setBounds (r.removeFromTop (36).withSizeKeepingCentre (260, 36));
+        r.removeFromTop (12);
+        error.setBounds (r);
+    }
+
+private:
+    juce::Label text, error;
+    juce::TextButton choose { "Choose System Program..." };
+    std::unique_ptr<juce::FileChooser> chooser;
+};
 
 // The window: the SP-404MKII panel, with the debug drawer beside it.
 class MainComponent : public juce::Component,
+                      public juce::MenuBarModel,
                       private juce::AudioIODeviceCallback,
                       private juce::ChangeListener,
                       private juce::Timer
@@ -9,6 +68,15 @@ class MainComponent : public juce::Component,
 public:
     MainComponent() : panel (link), debug (link, panel)
     {
+        juce::PropertiesFile::Options opts;
+        opts.applicationName = "Doom-404";
+        opts.filenameSuffix = ".settings";
+        opts.folderName = "Doom-404";
+        opts.osxLibrarySubFolder = "Application Support";
+        settings = std::make_unique<juce::PropertiesFile> (opts);
+        sdSlot = std::make_unique<SdSlot> (link, *settings);
+        sdSlot->onChange = [this] { menuItemsChanged(); };
+
         addAndMakeVisible (panel);
         addAndMakeVisible (debug);
         addAndMakeVisible (status);
@@ -28,17 +96,27 @@ public:
             }
         };
 
-        const auto error = link.start (EmulatorLink::defaultPaths());
-        status.setText (error.isEmpty() ? "Starting emulator..." : error, juce::dontSendNotification);
+        link.onSdCard = [this] (bool in, const juce::String& e)
+        {
+            juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<MainComponent> (this), in, e]
+            {
+                if (safe != nullptr)
+                    safe->sdSlot->handleReply (in, e);
+            });
+        };
+
+        // A development checkout's firmware and drives come over once; with
+        // no firmware yet, the setup screen asks for it.
+        adopted = Storage::adoptDevFiles();
+        addChildComponent (setup);
+        setup.onChosen = [this] (const juce::File& f) { installFirmware (f); };
+        if (Storage::firmware().existsAsFile())
+            startEmulator();
+        else
+            setup.setVisible (true);
 
         // Audio: the device settings saved last time, else the default
         // device at the emulator's own 48 kHz.
-        juce::PropertiesFile::Options opts;
-        opts.applicationName = "Doom-404";
-        opts.filenameSuffix = ".settings";
-        opts.folderName = "Doom-404";
-        opts.osxLibrarySubFolder = "Application Support";
-        settings = std::make_unique<juce::PropertiesFile> (opts);
         auto saved = settings->getXmlValue ("audioDevice");
         audio.initialise (2, 2, saved.get(), true);
         if (saved == nullptr)
@@ -63,6 +141,7 @@ public:
 
     ~MainComponent() override
     {
+        sdWindow.reset();
         audio.removeChangeListener (this);
         audio.removeAudioCallback (this);
         link.stop();
@@ -73,6 +152,7 @@ public:
     void resized() override
     {
         auto r = getLocalBounds();
+        setup.setBounds (r);
         if (! debugShown)
         {
             // Just the panel, centred, at the unit's 100:160 proportions.
@@ -124,8 +204,241 @@ public:
             grabKeyboardFocus();
     }
 
+    //==========================================================================
+    // Starting the unit, and the setup that comes before it.
+    void startEmulator()
+    {
+        juce::String error = Storage::ensureDrives();
+        if (error.isEmpty())
+        {
+            auto paths = EmulatorLink::defaultPaths();
+            paths.sdInserted = sdSlot->isInserted();
+            error = link.start (paths);
+        }
+        status.setText (error.isEmpty() ? "Starting emulator..." : error, juce::dontSendNotification);
+        if (error.isNotEmpty())
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Doom-404", error);
+        else if (! adopted.isEmpty())
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Doom-404",
+                "Brought over from the development checkout:\n" + adopted.joinIntoString ("\n")
+                    + "\n\nThe unit now lives in " + Storage::dataDir().getFullPathName());
+        adopted.clear();
+    }
+
+    void installFirmware (const juce::File& f)
+    {
+        bool wrongVersion = false;
+        if (auto e = Storage::importFirmware (f, wrongVersion); e.isNotEmpty())
+        {
+            setup.setError (e);
+            return;
+        }
+        setup.setVisible (false);
+        if (wrongVersion)
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Doom-404",
+                "That is not System Program 5.52, the version Doom-404 is made for. It may not work.");
+        restartEmulator();
+    }
+
+    void restartEmulator()
+    {
+        link.stop();
+        startEmulator();
+    }
+
+    //==========================================================================
+    // The menu bar.
+    enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
+                   debugDrawerId, audioSettingsId };
+
+    juce::StringArray getMenuBarNames() override { return { "Unit", "View", "Options" }; }
+
+    juce::PopupMenu getMenuForIndex (int index, const juce::String&) override
+    {
+        juce::PopupMenu m;
+        if (index == 0)
+        {
+            m.addItem (sdWindowId, "SD card...");
+            m.addItem (sdToggleId, sdSlot->isInserted() ? "Take SD card out" : "Put SD card in");
+            m.addSeparator();
+            m.addItem (backupId, "Back up internal drive to a folder...");
+            m.addItem (restoreId, "Restore internal drive from a folder...");
+            m.addSeparator();
+            m.addItem (restartId, "Restart");
+            m.addItem (chooseFirmwareId, "Choose System Program...");
+            m.addItem (openDataId, "Open data folder");
+        }
+        else if (index == 1)
+            m.addItem (debugDrawerId, "Debug drawer\t`", true, debugShown);
+        else
+            m.addItem (audioSettingsId, "Audio settings...");
+        return m;
+    }
+
+    void menuItemSelected (int id, int) override
+    {
+        switch (id)
+        {
+            case sdWindowId:       showSdCard(); break;
+            case sdToggleId:
+                sdSlot->setInserted (! sdSlot->isInserted(), [] (const juce::String& e)
+                {
+                    if (e.isNotEmpty())
+                        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "SD card", e);
+                });
+                break;
+            case backupId:         backupInternal(); break;
+            case restoreId:        restoreInternal(); break;
+            case restartId:        restartEmulator(); break;
+            case chooseFirmwareId: setup.setError ({}); setup.setVisible (true); setup.toFront (false); break;
+            case openDataId:       Storage::dataDir().startAsProcess(); break;
+            case debugDrawerId:    setDebugShown (! debugShown); break;
+            case audioSettingsId:  showAudioSettings(); break;
+            default:               break;
+        }
+    }
+
+    void showSdCard()
+    {
+        if (sdWindow == nullptr)
+        {
+            sdWindow = std::make_unique<SdCardWindow> (*sdSlot, Storage::sdCard(), [this]
+            {
+                juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<MainComponent> (this)]
+                {
+                    if (safe != nullptr)
+                        safe->sdWindow.reset();
+                });
+            });
+            sdWindow->centreWithSize (sdWindow->getWidth(), sdWindow->getHeight());
+            sdWindow->setVisible (true);
+        }
+        sdWindow->toFront (true);
+        sdWindow->content().refresh();
+    }
+
+    // Backups are the drive's files, copied to a folder (the image is a
+    // mostly empty 16 GB); restoring makes a fresh drive from such a folder.
+    // The unit is off meanwhile.
+    void backupInternal()
+    {
+        chooser = std::make_unique<juce::FileChooser> ("Back up the internal drive into",
+                                                       juce::File::getSpecialLocation (juce::File::userDocumentsDirectory));
+        chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                              [this] (const juce::FileChooser& fc)
+        {
+            auto dest = fc.getResult();
+            if (dest == juce::File())
+                return;
+            dest = dest.getChildFile ("SP-404MKII backup " + juce::Time::getCurrentTime().formatted ("%Y-%m-%d %H%M"));
+            runDriveJob ("Backing up the internal drive", [dest] (juce::ThreadWithProgressWindow& j) -> juce::String
+            {
+                fatimg::Volume v;
+                if (auto e = v.open (Storage::toPath (Storage::internalDrive()), true); ! e.empty())
+                    return juce::String (e);
+                std::vector<fatimg::Entry> top;
+                if (auto e = v.list ("/", top); ! e.empty())
+                    return juce::String (e);
+                dest.createDirectory();
+                for (auto& t : top)
+                    if (auto e = v.extract ("/" + t.name, Storage::toPath (dest), [&j] (const std::string& p)
+                        {
+                            j.setStatusMessage (juce::String::fromUTF8 (p.c_str()));
+                            return ! j.threadShouldExit();
+                        });
+                        ! e.empty())
+                        return juce::String::fromUTF8 (e.c_str());
+                dest.revealToUser();
+                return {};
+            });
+        });
+    }
+
+    void restoreInternal()
+    {
+        chooser = std::make_unique<juce::FileChooser> ("Restore the internal drive from (a backup folder)",
+                                                       juce::File::getSpecialLocation (juce::File::userDocumentsDirectory));
+        chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                              [this] (const juce::FileChooser& fc)
+        {
+            const auto src = fc.getResult();
+            if (src == juce::File())
+                return;
+            auto opts = juce::MessageBoxOptions::makeOptionsOkCancel (juce::MessageBoxIconType::WarningIcon, "Restore",
+                "Replace everything on the internal drive with the contents of\n" + src.getFullPathName() + "?",
+                "Replace", "Cancel", this);
+            juce::AlertWindow::showAsync (opts, [this, src] (int result)
+            {
+                if (result != 1)
+                    return;
+                runDriveJob ("Restoring the internal drive", [src] (juce::ThreadWithProgressWindow& j) -> juce::String
+                {
+                    // Into a new image first: the old one stays if this fails.
+                    const auto fresh = Storage::internalDrive().getSiblingFile ("internal.new.img");
+                    if (auto e = fatimg::create (Storage::toPath (fresh), (uint64_t) Storage::internalBytes,
+                                                 fatimg::Format::exfat, "SP-404MKII", false);
+                        ! e.empty())
+                        return juce::String (e);
+                    {
+                        fatimg::Volume v;
+                        if (auto e = v.open (Storage::toPath (fresh), false); ! e.empty())
+                            return juce::String (e);
+                        for (auto& child : src.findChildFiles (juce::File::findFilesAndDirectories | juce::File::ignoreHiddenFiles, false))
+                            if (auto e = v.add (Storage::toPath (child), "/", [&j] (const std::string& p)
+                                {
+                                    j.setStatusMessage (juce::String::fromUTF8 (p.c_str()));
+                                    return ! j.threadShouldExit();
+                                });
+                                ! e.empty())
+                            {
+                                v.close();
+                                fresh.deleteFile();
+                                return juce::String::fromUTF8 (e.c_str());
+                            }
+                    }
+                    if (! fresh.moveFileTo (Storage::internalDrive()))
+                        return "Could not replace " + Storage::internalDrive().getFullPathName();
+                    return {};
+                });
+            });
+        });
+    }
+
+    // Stops the unit, runs `job` behind a progress window, starts it again.
+    void runDriveJob (const juce::String& title, std::function<juce::String (juce::ThreadWithProgressWindow&)> job)
+    {
+        struct Job : juce::ThreadWithProgressWindow
+        {
+            Job (const juce::String& t, std::function<juce::String (juce::ThreadWithProgressWindow&)> w,
+                 std::function<void (juce::String)> d)
+                : juce::ThreadWithProgressWindow (t, true, true), work (std::move (w)), done (std::move (d))
+            {
+                setProgress (-1.0);
+            }
+            void run() override { result = work (*this); }
+            void threadComplete (bool cancelled) override
+            {
+                done (cancelled && result.isEmpty() ? juce::String ("Stopped.") : result);
+                delete this;
+            }
+            std::function<juce::String (juce::ThreadWithProgressWindow&)> work;
+            std::function<void (juce::String)> done;
+            juce::String result;
+        };
+        link.stop();
+        status.setText ("Unit off: " + title, juce::dontSendNotification);
+        (new Job (title, std::move (job), [safe = juce::Component::SafePointer<MainComponent> (this), title] (juce::String e)
+        {
+            if (e.isNotEmpty())
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, title, e);
+            if (safe != nullptr)
+                safe->startEmulator();
+        }))->launchThread();
+    }
+
 public:
     PanelComponent& getPanel() { return panel; }
+    SdCardWindow* getSdWindow() { return sdWindow.get(); }
 
     void modifierKeysChanged (const juce::ModifierKeys& mods) override
     {
@@ -346,6 +659,11 @@ private:
     PanelComponent panel;
     DebugPanel debug;
     juce::Label status;
+    SetupComponent setup;
+    std::unique_ptr<SdSlot> sdSlot;
+    std::unique_ptr<SdCardWindow> sdWindow;
+    std::unique_ptr<juce::FileChooser> chooser;
+    juce::StringArray adopted;
     juce::TooltipWindow tooltips { this, 600 };
     juce::AudioDeviceManager audio;
     std::unique_ptr<juce::PropertiesFile> settings;
@@ -408,11 +726,27 @@ public:
                     mc->getPanel().tap (name);
             });
         }
+        // --sd-window: open the SD card window 20 s in (a --snapshot then
+        // also saves it, as NAME-sd.png).
+        if (args.contains ("--sd-window"))
+            juce::Timer::callAfterDelay (20000, [this]
+            {
+                if (auto* mc = dynamic_cast<MainComponent*> (window->getContentComponent()))
+                    mc->showSdCard();
+            });
         if (const int i = args.indexOf ("--snapshot"); i >= 0 && i + 1 < args.size())
         {
             const juce::File out (args[i + 1].unquoted());
             juce::Timer::callAfterDelay (25000, [this, out]
             {
+                if (auto* mc = dynamic_cast<MainComponent*> (window->getContentComponent()))
+                    if (auto* sd = mc->getSdWindow())
+                    {
+                        auto f = out.getSiblingFile (out.getFileNameWithoutExtension() + "-sd.png");
+                        f.deleteFile();
+                        juce::FileOutputStream os (f);
+                        juce::PNGImageFormat().writeImageToStream (sd->createComponentSnapshot (sd->getLocalBounds()), os);
+                    }
                 if (auto* c = window->getContentComponent())
                 {
                     out.deleteFile();
@@ -435,11 +769,15 @@ private:
         Window() : juce::DocumentWindow ("Doom-404: SP-404MKII emulator", juce::Colours::black, allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent(), true);
+            auto* main = new MainComponent();
+            setContentOwned (main, true);
+            setMenuBar (main);
             setResizable (true, true);
             centreWithSize (getWidth(), getHeight());
             setVisible (true);
         }
+
+        ~Window() override { setMenuBar (nullptr); }
 
         void closeButtonPressed() override
         {

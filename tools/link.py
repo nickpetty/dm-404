@@ -32,6 +32,7 @@ class Link:
         self.audio = 0
         self.peak = 0
         self.bmc = []
+        self.sdcard = None              # (card in, error) after sd_eject/sd_insert
         self.pcm = bytearray()          # all audio, 48 kHz stereo s16le
         self.lock = threading.Lock()
         threading.Thread(target=self.reader, daemon=True).start()
@@ -64,9 +65,17 @@ class Link:
                             self.peak = max(self.peak, v)
                     elif t == 3:
                         self.bmc.append(p.hex())
+                    elif t == 4:
+                        self.sdcard = (bool(p[0]), p[1:].decode(errors='replace'))
 
     def send(self, t, payload):
         self.s.sendall(struct.pack('<BBH', t, 0, len(payload)) + payload)
+
+    def sd_eject(self):
+        self.send(0x86, b'')
+
+    def sd_insert(self, path):
+        self.send(0x86, path.encode())
 
     def key(self, r, c, down):
         self.send(0x81, bytes([r, c, 1 if down else 0]))

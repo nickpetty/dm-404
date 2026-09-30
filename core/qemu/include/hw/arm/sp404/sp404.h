@@ -424,10 +424,13 @@ struct SP404Link {
     void (*bmc_rx)(void *opaque, const uint8_t *pkt);
     void (*encoder)(void *opaque, int steps);
     void (*audio_in)(void *opaque, const int16_t *lr, int frames);
+    void (*sdcard)(void *opaque, const char *path);     /* NULL: eject */
 };
 
 void sp404_link_init(SP404Link *l, Chardev *chr, SSD1309State *oled);
 void sp404_link_audio(void *opaque, const int16_t *lr, int frames);
 void sp404_link_bmc_tx(SP404Link *l, const uint8_t *pkt);
+void sp404_link_send(SP404Link *l, uint8_t type, const void *data,
+                     uint16_t len);
 
 #endif

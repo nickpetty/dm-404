@@ -13,10 +13,10 @@ public:
     struct Paths
     {
         juce::File qemu, firmware, flash, emmc, sd;
+        bool sdInserted = true;         // start with the card in the slot
     };
 
-    // The repo layout: frontend binaries live under build/, the core under
-    // build/qemu, Roland's firmware under firmware/.
+    // The data folder's files (Storage.h).
     static Paths defaultPaths();
 
     EmulatorLink();
@@ -52,6 +52,12 @@ public:
 
     // Packets the firmware sent the BMC, for LED and MIDI decoding.
     std::function<void (const uint8_t* packet)> onBmcPacket;
+
+    // The SD slot: take the card out (an empty file) or put an image in.
+    // The answer comes to onSdCard, on the link thread: whether a card is
+    // in, and an error (empty if it worked).
+    void sendSdCard (const juce::File& image);
+    std::function<void (bool inserted, const juce::String& error)> onSdCard;
 
 private:
     void run() override;

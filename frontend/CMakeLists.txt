@@ -23,11 +23,23 @@ juce_add_gui_app(Doom404
 
 juce_generate_juce_header(Doom404)
 
+# The panel's bindings, built in (a development run reads the repo's copy).
+juce_add_binary_data(Doom404Data SOURCES panel.json)
+
+# FatFs (ChaN, BSD-style licence): the drive images.
+add_library(fatfs STATIC
+    ThirdParty/fatfs/ff.c
+    ThirdParty/fatfs/ffunicode.c
+    ThirdParty/fatfs/ffsystem.c)
+
 target_sources(Doom404 PRIVATE
     Source/Main.cpp
     Source/EmulatorLink.cpp
     Source/PanelComponent.cpp
-    Source/DebugPanel.cpp)
+    Source/DebugPanel.cpp
+    Source/FatImage.cpp
+    Source/Storage.cpp
+    Source/SdCardWindow.cpp)
 
 target_compile_definitions(Doom404 PRIVATE
     JUCE_WEB_BROWSER=0
@@ -37,6 +49,9 @@ target_compile_definitions(Doom404 PRIVATE
     JUCE_DISPLAY_SPLASH_SCREEN=0)
 
 target_link_libraries(Doom404 PRIVATE
+    Doom404Data
+    fatfs
+    juce::juce_cryptography
     juce::juce_gui_extra
     juce::juce_audio_utils
     juce::juce_recommended_config_flags
