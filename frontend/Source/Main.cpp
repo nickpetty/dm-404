@@ -272,7 +272,7 @@ public:
     // The menu bar.
     enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
                    debugDrawerId, audioSettingsId, muteForDawId, backgroundId, resetBackgroundId,
-                   textColourId, resetTextColourId, virtualMidiId,
+                   textColourId, resetTextColourId, virtualMidiId, midiServicesId,
                    midiInBase = 1000, midiOutBase = 2000 };     // + device index + 1 (0: none)
 
     juce::StringArray getMenuBarNames() override { return { "Unit", "View", "Options" }; }
@@ -321,11 +321,12 @@ public:
             ports (out, midiOutBase, midiOutList, midiPorts->outputId());
             m.addSubMenu ("MIDI IN (plays the unit)", in);
             m.addSubMenu ("MIDI OUT (from the unit)", out);
-            // Its USB MIDI as a MIDI device of its own (not on Windows yet).
-            if (MidiPorts::virtualSupported())
-                m.addItem (virtualMidiId, "Virtual MIDI port \"Doom-404\"", true, midiPorts->hasVirtual());
-            else
-                m.addItem (virtualMidiId, "Virtual MIDI port \"Doom-404\" (not on Windows yet)", false, false);
+            // Its USB MIDI as a MIDI device of its own; what is wrong, if anything.
+            const auto portStatus = midiPorts->virtualStatus();
+            m.addItem (virtualMidiId, "MIDI port \"Doom-404\"" + (portStatus.isEmpty() ? juce::String() : " (" + portStatus + ")"),
+                       true, midiPorts->wantsVirtual());
+            if (portStatus.contains ("Windows MIDI Services"))
+                m.addItem (midiServicesId, "Get Windows MIDI Services...");
         }
         return m;
     }
@@ -368,7 +369,8 @@ public:
                 settings->saveIfNeeded();
                 break;
             case textColourId:     chooseTextColour(); break;
-            case virtualMidiId:    midiPorts->setVirtual (! midiPorts->hasVirtual()); break;
+            case virtualMidiId:    midiPorts->setVirtual (! midiPorts->wantsVirtual()); break;
+            case midiServicesId:   juce::URL ("https://aka.ms/midi").launchInDefaultBrowser(); break;
             case resetTextColourId:
                 panel.setTextColour (PanelComponent::defaultTextColour());
                 settings->removeValue ("textColour");
@@ -686,6 +688,12 @@ private:
 
     void timerCallback() override
     {
+        // The Doom-404 MIDI port's troubles go to the log (for bug reports).
+        if (const auto s = midiPorts->virtualStatus(); s != lastPortStatus)
+        {
+            lastPortStatus = s;
+            log ("MIDI port \"Doom-404\": " + (s.isEmpty() ? juce::String (midiPorts->wantsVirtual() ? "up" : "off") : s));
+        }
         // After 10 s without running dry, give latency back: the cushion
         // shrinks by 6 ms a second towards 60 ms (it grows while booting,
         // when the emulator is busy loading samples).
@@ -838,6 +846,14 @@ private:
     EmulatorLink link;
     std::unique_ptr<DawBridge> daw;
     std::unique_ptr<MidiPorts> midiPorts;
+    juce::String lastPortStatus { "?" };
+
+    // A line in doom-404.log in the data folder.
+    static void log (const juce::String& line)
+    {
+        Storage::dataDir().getChildFile ("doom-404.log")
+            .appendText (juce::Time::getCurrentTime().toISO8601 (true) + "  " + line + "\n");
+    }
     juce::Array<juce::MidiDeviceInfo> midiInList, midiOutList;     // as last shown in the menu
     std::atomic<bool> muteForDaw { true };      // silence the app while a DAW plugin plays the unit
     PanelComponent panel;

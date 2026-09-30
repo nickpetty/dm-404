@@ -40,7 +40,8 @@ target_sources(Doom404 PRIVATE
     Source/FatImage.cpp
     Source/Storage.cpp
     Source/SdCardWindow.cpp
-    Source/DawBridge.cpp)
+    Source/DawBridge.cpp
+    Source/WinMidi.cpp)
 
 target_compile_definitions(Doom404 PRIVATE
     JUCE_WEB_BROWSER=0
@@ -48,6 +49,43 @@ target_compile_definitions(Doom404 PRIVATE
     JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:Doom404,JUCE_PRODUCT_NAME>"
     JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:Doom404,JUCE_VERSION>"
     JUCE_DISPLAY_SPLASH_SCREEN=0)
+
+# Windows MIDI Services: the app's own "Doom-404" MIDI port (WinMidi.cpp).
+# Only the SDK's metadata is used, to generate C++/WinRT headers; its
+# runtime is not shipped (Windows provides it, or the user adds it).
+if(WIN32)
+    option(DOOM404_WINMIDI "The Doom-404 MIDI port through Windows MIDI Services" ON)
+endif()
+if(WIN32 AND DOOM404_WINMIDI)
+    set(MIDI2_VERSION "0.99.83-devpreview.9")
+    set(MIDI2_RELEASE "inbox-dev-preview-9")
+    set(MIDI2_DIR "${CMAKE_BINARY_DIR}/midi2")
+    set(MIDI2_NUPKG "${MIDI2_DIR}/Windows.Devices.Midi2.${MIDI2_VERSION}.nupkg")
+    set(MIDI2_WINMD "${MIDI2_DIR}/pkg/ref/native/Windows.Devices.Midi2.winmd")
+    if(NOT EXISTS "${MIDI2_WINMD}")
+        if(NOT EXISTS "${MIDI2_NUPKG}")
+            message(STATUS "Fetching the Windows MIDI Services SDK metadata (${MIDI2_VERSION})")
+            file(DOWNLOAD "https://github.com/microsoft/MIDI/releases/download/${MIDI2_RELEASE}/Windows.Devices.Midi2.${MIDI2_VERSION}.nupkg"
+                 "${MIDI2_NUPKG}" STATUS dl)
+        endif()
+        file(ARCHIVE_EXTRACT INPUT "${MIDI2_NUPKG}" DESTINATION "${MIDI2_DIR}/pkg" PATTERNS "ref/native/*")
+    endif()
+    set(SDK_VER "${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
+    find_program(CPPWINRT cppwinrt
+        HINTS "C:/Program Files (x86)/Windows Kits/10/bin/${SDK_VER}/x64" "$ENV{WindowsSdkBinPath}/x64")
+    if(EXISTS "${MIDI2_WINMD}" AND CPPWINRT)
+        if(NOT EXISTS "${MIDI2_DIR}/gen/winrt/Windows.Devices.Midi2.h")
+            execute_process(COMMAND "${CPPWINRT}" -input "${MIDI2_WINMD}" -input "${SDK_VER}" -output "${MIDI2_DIR}/gen"
+                            RESULT_VARIABLE gen_result)
+        endif()
+        target_include_directories(Doom404 BEFORE PRIVATE "${MIDI2_DIR}/gen")
+        target_compile_definitions(Doom404 PRIVATE DOOM404_WINMIDI=1)
+        target_link_libraries(Doom404 PRIVATE windowsapp)
+        set_source_files_properties(Source/WinMidi.cpp PROPERTIES COMPILE_OPTIONS "/bigobj")
+    else()
+        message(WARNING "Windows MIDI Services SDK or cppwinrt not found: no Doom-404 MIDI port on Windows")
+    endif()
+endif()
 
 target_link_libraries(Doom404 PRIVATE
     Doom404Data

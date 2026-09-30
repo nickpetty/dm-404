@@ -179,13 +179,20 @@ firmware reacts within ~4 ms. The plugin sends MIDI clock, Song Position
 and Start/Continue/Stop from the DAW transport; the unit follows it as it
 is (its tempo DT1 went to 140.0). The standalone app has the MIDI IN/OUT
 jacks as computer MIDI ports (Options menu, cable 9 in, bit 0 out).
-It also makes a virtual MIDI port pair named "Doom-404" (never the
-Roland/SP-404 name) as the unit's USB MIDI (cable 8 in, bit 3 out) where
-the system allows apps to (JUCE createNewDevice: macOS, Linux). Windows
-cannot yet: Windows MIDI Services can (MidiVirtualDeviceManager, shown to
-WinMM apps as MIDI 1.0 ports), but its App SDK is still a preview runtime
-that apps may not redistribute (checked 2026-09); revisit when it ships in
-Windows.
+It also makes a MIDI port named "Doom-404" (never the Roland/SP-404
+name) as the unit's USB MIDI (cable 8 in, bit 3 out): JUCE createNewDevice
+on macOS and Linux; on Windows, Frontend/Source/WinMidi.cpp through Windows
+MIDI Services (a virtual device, which WinMM apps see as MIDI 1.0 ports).
+Its App SDK is a preview Microsoft does not let apps redistribute
+(checked 2026-09), so nothing of it ships: CMake fetches the pinned
+package (0.99.83-devpreview.9) only to generate C++/WinRT headers from its
+.winmd (DOOM404_WINMIDI); at run time the types come from Windows (in-box,
+as they will be) or from a Windows.Devices.Midi2.dll the user put in the
+data folder (loaded through winrt_activation_handler). Seen working (the
+port listed by tools/midiports.py); then the service hung on later runs,
+Microsoft's issue #1047 (fix due Nov 2026): the app reports "not answering"
+after 10 s and never waits on it at exit. Status goes to doom-404.log in
+the data folder.
 
 LinkHostTest (frontend/Tests) loads the VST3 like a DAW and runs it in
 real time at 44.1 kHz against the running app: `LinkHostTest PLUGIN.vst3
