@@ -14,6 +14,7 @@ DT1 SysEx writes it caused, decoded as "addr(4) <- data". ACTIONs:
                       MFX, turn VALUE, release)
     wait:S            let S seconds pass
     shot:NAME         OLED screenshot to build/logs/NAME.png
+    mem:ADDR[,N]      print N (default 1) bytes of guest memory (monitor xp)
     label:TEXT        print TEXT (to annotate the output)
 
 FXMAP_LEDS=1 also prints LED writes on pages other than 0/1 (blink, pulse);
@@ -85,7 +86,8 @@ def main():
                           '-chardev', 'socket,id=link,host=127.0.0.1,port=%d,server=on,wait=on' % port,
                           '-drive', 'if=sd,index=1,format=raw,snapshot=on,file=' +
                           os.path.join(ROOT, 'build', 'emmc.img'),
-                          '-nographic', '-monitor', 'none', '-serial', 'none'] +
+                          '-nographic', '-serial', 'none',
+                          '-monitor', 'tcp:127.0.0.1:%d,server,nowait' % (port + 1)] +
                          (['-D', os.environ['FXMAP_LOG']] if os.environ.get('FXMAP_LOG') else []),
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
@@ -159,6 +161,23 @@ def main():
                 continue
             elif kind == 'shot':
                 lk.shot(v)
+                continue
+            elif kind == 'mem':
+                addr, _, n = v.partition(',')
+                with socket.create_connection(('127.0.0.1', port + 1), timeout=5) as ms:
+                    ms.settimeout(1)
+                    ms.sendall(b'xp /%sbx %s' % ((n or '1').encode(), addr.encode()) + bytes([10]))
+                    out = b''
+                    try:
+                        while True:
+                            d = ms.recv(65536)
+                            if not d:
+                                break
+                            out += d
+                    except socket.timeout:
+                        pass
+                lines = [l for l in out.decode(errors='replace').replace(chr(13), '').split(chr(10)) if ': 0x' in l]
+                print('mem %s: %s' % (addr, ' | '.join(lines)))
                 continue
             elif kind == 'label':
                 print('## ' + v)

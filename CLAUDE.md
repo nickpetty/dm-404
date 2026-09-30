@@ -217,7 +217,12 @@ EXT SOURCE: the firmware sends the BMC InputVolume (02 00 00 02) 0xff on,
 engine mixes the input (after the input FX) at that level into the bus
 EFX SET > OTHER > Input Bus names (Effect_InputAssign, 02 02 00 06: 0 DRY,
 1 BUS1, the default, 2 BUS2). INPUT SETTING's ROUTING picks what is sampled
-(above), not what is heard.
+(above), not what is heard. REMAIN + EXT SOURCE toggles it between DRY and the
+bus BUS FX selects, as REMAIN + pad does for a pad. REC and RESAMPLE send
+the BMC nothing different: both sample RX words 0/1 as ROUTING makes them.
+The recorder feed (FUN_0001ca80) can take words 2/3 instead (byte +600 of
+0x82e0e71c, or the flag 0x82e011a8), but they stayed 0 through sampling
+and resampling standby.
 
 ## USB port
 
