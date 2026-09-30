@@ -1,0 +1,42 @@
+doom-404 is made of parts under different licences, because it builds on
+projects that are under different licences. Each part's licence text is in
+LICENSES/.
+
+  Part                                   Licence                 Why
+  -------------------------------------  ----------------------  -------------------------------
+  core/qemu/  (machine, devices,         GPL-2.0-or-later        it is part of QEMU (GPL-2.0);
+   patches to QEMU)                                              each file carries an SPDX line
+  core/fx/    (the effects engine)       MIT                     our own code; see below for the
+                                                                 built library
+  frontend/   (the app, the Doom-404     AGPL-3.0-or-later       it is built on JUCE, which is
+   Link plugin, tests)                                           AGPLv3 (or commercial)
+  frontend/ThirdParty/fatfs/             FatFs licence (BSD-     ChaN's FatFs, unchanged but for
+                                         style, in each file)    its configuration
+  tools/, docs, everything else          MIT
+
+What the built programs are under, when you pass them on:
+
+  qemu-system-arm(.exe)   GPL-2.0-or-later: QEMU with core/qemu/. Offer the
+                          corresponding source (QEMU v11.1.2 plus this repo).
+  sp404fx.dll             MIT (core/fx) + MIT (DaisySP) + LGPL-2.1 (the parts
+                          of DaisySP-LGPL it links statically: the compressor
+                          and ReverbSc). The whole source is public, which
+                          lets anyone rebuild or relink it, as the LGPL asks.
+  Doom-404(.exe),         AGPL-3.0-or-later, as JUCE's open-source licence
+  Doom-404 Link.vst3,     requires (the VST3 SDK in JUCE is MIT). Anyone who
+  LinkHostTest            receives them may have the source (this repo).
+
+Not part of doom-404, and never included in it:
+
+  - Roland's SP-404MKII firmware (System Program), which the user downloads
+    from Roland and the app copies in. It is Roland's copyright.
+  - The Windows MIDI Services SDK runtime (Microsoft, MIT): the build uses
+    its metadata to generate headers; at run time it comes from Windows, or
+    the user supplies it.
+  - Anyone's samples or projects.
+
+"Roland" and "SP-404" are trademarks of Roland Corporation. doom-404 is an
+independent project, not affiliated with or endorsed by Roland; the names
+are used only to say what hardware it emulates.
+
+SPDX: GPL-2.0-or-later AND LGPL-2.1-only AND AGPL-3.0-or-later AND MIT
