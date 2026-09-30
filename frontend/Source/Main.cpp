@@ -175,8 +175,8 @@ public:
         startTimerHz (60);
         setSize (1280, 900);
         setWantsKeyboardFocus (true);
-        panel.setBindingLearn (settings->getBoolValue ("debugShown", true));
-        if (! settings->getBoolValue ("debugShown", true))
+        panel.setBindingLearn (settings->getBoolValue ("debugShown", false));
+        if (! settings->getBoolValue ("debugShown", false))
             setDebugShown (false);
     }
 
