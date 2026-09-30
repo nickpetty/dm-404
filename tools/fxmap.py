@@ -87,7 +87,7 @@ def main():
                           '-bios', os.path.join(ROOT, 'firmware', 'SP404MKII_APP1.bin'),
                           '-chardev', 'socket,id=link,host=127.0.0.1,port=%d,server=on,wait=on' % port,
                           '-drive', 'if=sd,index=1,format=raw,snapshot=%s,file=' % ('off' if os.environ.get('FXMAP_WRITE') else 'on') +
-                          os.environ.get('FXMAP_EMMC') or os.path.join(ROOT, 'build', 'emmc.img'),
+                          (os.environ.get('FXMAP_EMMC') or os.path.join(ROOT, 'build', 'emmc.img')),
                           '-nographic', '-serial', 'none',
                           '-monitor', 'tcp:127.0.0.1:%d,server,nowait' % (port + 1)] +
                          (['-D', os.environ['FXMAP_LOG']] if os.environ.get('FXMAP_LOG') else []),
