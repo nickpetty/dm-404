@@ -274,6 +274,71 @@ struct IMXRTSAI {
     uint64_t frames;
 };
 
+#define TYPE_IMXRT_USB "imxrt-usb"
+OBJECT_DECLARE_SIMPLE_TYPE(IMXRTUSB, IMXRT_USB)
+
+#define IMXRT_USB_EPS 8
+
+/* An endpoint direction's current dTD, as the controller works through it. */
+typedef struct IMXRTUSBEndpoint {
+    bool primed;
+    bool ioc;
+    uint32_t dtd;               /* its address */
+    uint32_t total, off;        /* bytes it holds, bytes moved */
+    uint32_t page[5];
+} IMXRTUSBEndpoint;
+
+/*
+ * A transfer from the host (imxrt-usb.c): on endpoint ep, IN (to the host)
+ * or OUT; a control transfer carries its SETUP. buf holds len bytes (OUT)
+ * or room for them (IN); done counts what moved. complete is called once,
+ * with status 0 or a negative errno (-EPIPE: stalled).
+ */
+typedef struct IMXRTUSBXfer IMXRTUSBXfer;
+struct IMXRTUSBXfer {
+    QTAILQ_ENTRY(IMXRTUSBXfer) link;
+    int ep;
+    bool in, control;
+    uint8_t setup[8];
+    uint8_t *buf;
+    uint32_t len, done;
+    int stage, status;
+    void (*complete)(void *opaque, IMXRTUSBXfer *x);
+    void *opaque;
+    uint32_t seqnum;            /* the USB/IP request it answers */
+};
+
+struct IMXRTUSB {
+    SysBusDevice parent_obj;
+    MemoryRegion iomem;
+    qemu_irq irq;
+    uint32_t cmd, sts, intr, devaddr, listaddr, burstsize, txfill, naken;
+    uint32_t portsc, otgsc, mode, setupstat, stat, complete;
+    uint32_t epctrl[IMXRT_USB_EPS];
+    uint32_t other[128];
+    IMXRTUSBEndpoint eps[IMXRT_USB_EPS][2];     /* [ep][0 OUT, 1 IN] */
+    QTAILQ_HEAD(, IMXRTUSBXfer) xfers;
+    bool attached, announced, pumping;
+    /* Told when the firmware starts or stops the controller (USBCMD.RS). */
+    void (*run_changed)(void *opaque);
+    void *run_opaque;
+};
+
+/* The host side (the USB/IP server): see imxrt-usb.c. */
+void imxrt_usb_host_submit(IMXRTUSB *s, IMXRTUSBXfer *x);
+bool imxrt_usb_host_cancel(IMXRTUSB *s, IMXRTUSBXfer *x);
+bool imxrt_usb_host_running(IMXRTUSB *s);
+void imxrt_usb_host_attach(IMXRTUSB *s, bool on);
+void imxrt_usb_host_reset(IMXRTUSB *s);
+
+/*
+ * The USB port on the network (sp404-usbip.c): a USB/IP server on a
+ * chardev, so a USB/IP client (usbip-win2, Linux usbip) can attach the unit
+ * as a USB device.
+ */
+typedef struct SP404USBIP SP404USBIP;
+void sp404_usbip_init(IMXRTUSB *usb, Chardev *chr);
+
 #define TYPE_IMXRT_PIT "imxrt-pit"
 OBJECT_DECLARE_SIMPLE_TYPE(IMXRTPIT, IMXRT_PIT)
 

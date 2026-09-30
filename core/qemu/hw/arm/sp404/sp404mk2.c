@@ -82,6 +82,10 @@ static const struct {
 };
 
 /* PIT, XBAR1, ADC1/2 and ADC_ETC: the knob scan's trigger chain. */
+/* USB OTG1: the unit's USB port (USB_OTG1 interrupt 113). */
+#define SP404_USB1_BASE         0x402e0000
+#define SP404_USB1_IRQ          113
+
 #define SP404_PIT_BASE          0x40084000
 #define SP404_PIT_IRQ           122
 #define SP404_XBAR1_BASE        0x403bc000
@@ -187,8 +191,7 @@ static const SP404StubBits sp404_stub_bits[] = {
     { 0x400d8180, 1u << 2 },    /* TEMPMON TEMPSENSE0: FINISHED */
     { 0x400d8270, 1u << 16 },   /* XTALOSC24M LOWPWR_CTRL: XTALOSC_PWRUP_STAT */
     { 0x40080000, 1u << 31 },   /* DCDC REG0: STS_DC_OK */
-    /* USB OTG1/2 USBCMD: RST completes at once. Nothing is ever attached. */
-    { 0x402e0140, 0, 1u << 1 },
+    /* USB OTG2 USBCMD: RST completes at once (OTG1 is modelled). */
     { 0x402e0340, 0, 1u << 1 },
     { 0 }
 };
@@ -226,6 +229,8 @@ typedef struct SP404Machine {
     Clock *sysclk, *refclk;
     char *flash_file;
     char *link_id;
+    char *usbip_id;             /* chardev of the USB/IP server, if any */
+    IMXRTUSB usb1;
     SP404Link link;
     uint8_t keys[8];            /* pressed columns, by matrix row */
     QEMUTimer *enc_timer;
@@ -814,6 +819,21 @@ static void sp404_init(MachineState *machine)
     m->gpio[SP404_SD_CD_GPIO].in_hook = sp404_gpio1_inputs;
     m->gpio[SP404_SD_CD_GPIO].in_hook_opaque = m;
 
+    object_initialize_child(OBJECT(machine), "usb1", &m->usb1, TYPE_IMXRT_USB);
+    sysbus_realize(SYS_BUS_DEVICE(&m->usb1), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&m->usb1), 0, SP404_USB1_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&m->usb1), 0,
+                       qdev_get_gpio_in(DEVICE(&m->armv7m), SP404_USB1_IRQ));
+    if (m->usbip_id) {
+        Chardev *chr = qemu_chr_find(m->usbip_id);
+
+        if (!chr) {
+            error_report("sp404mk2: no chardev '%s' for usbip", m->usbip_id);
+            exit(1);
+        }
+        sp404_usbip_init(&m->usb1, chr);
+    }
+
     if (m->link_id) {
         Chardev *chr = qemu_chr_find(m->link_id);
 
@@ -869,6 +889,19 @@ static void sp404_set_flash(Object *obj, const char *value, Error **errp)
     m->flash_file = g_strdup(value);
 }
 
+static char *sp404_get_usbip(Object *obj, Error **errp)
+{
+    return g_strdup(SP404_MACHINE(obj)->usbip_id);
+}
+
+static void sp404_set_usbip(Object *obj, const char *value, Error **errp)
+{
+    SP404Machine *m = SP404_MACHINE(obj);
+
+    g_free(m->usbip_id);
+    m->usbip_id = g_strdup(value);
+}
+
 static char *sp404_get_link(Object *obj, Error **errp)
 {
     return g_strdup(SP404_MACHINE(obj)->link_id);
@@ -902,6 +935,9 @@ static void sp404_machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "link", sp404_get_link, sp404_set_link);
     object_class_property_set_description(oc, "link",
         "Chardev id of the frontend link (panel, screen, audio)");
+    object_class_property_add_str(oc, "usbip", sp404_get_usbip, sp404_set_usbip);
+    object_class_property_set_description(oc, "usbip",
+        "Chardev id of a USB/IP server for the unit's USB port");
 }
 
 static const TypeInfo sp404_machine_info = {

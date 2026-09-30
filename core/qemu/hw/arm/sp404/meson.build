@@ -15,4 +15,6 @@ arm_common_ss.add(when: 'CONFIG_SP404MK2', if_true: files(
   'imxrt-xbar.c',
   'imxrt-adc.c',
   'sp404-link.c',
+  'imxrt-usb.c',
+  'sp404-usbip.c',
 ))
