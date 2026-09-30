@@ -1,8 +1,7 @@
 # doom-404: a Roland SP-404MKII emulator
 
 Runs Roland's own SP-404MKII firmware (System Program 5.52) on an emulated
-NXP i.MX RT1060 in a QEMU fork, with a hardware-lookalike JUCE frontend to
-come. Named after Dr. Doom, not the game.
+NXP i.MX RT1060 in a QEMU fork, with a hardware-lookalike JUCE frontend.
 
 Roland's firmware is not in the repo: `firmware/` holds the user's copy of
 the 5.52 system program (`SP404MKII_APP1.bin` sha256 `4a3d6771…0d80`,
