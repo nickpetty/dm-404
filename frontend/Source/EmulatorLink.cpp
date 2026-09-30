@@ -31,11 +31,15 @@ juce::String EmulatorLink::start (const Paths& p)
     juce::StringArray args;
     args.add (p.qemu.getFullPathName());
     args.add ("-M");
-    args.add ("sp404mk2,flash=" + p.flash.getFullPathName().replace (",", ",,") + ",link=link");
+    args.add ("sp404mk2,flash=" + p.flash.getFullPathName().replace (",", ",,") + ",link=link,usbip=usbip");
     args.add ("-bios");
     args.add (p.firmware.getFullPathName());
     args.add ("-chardev");
     args.add ("socket,id=link,host=127.0.0.1,port=" + juce::String (port) + ",server=on,wait=on");
+    // The unit's USB port, for a USB/IP client on this computer
+    // (usbip-win2: usbip attach -r 127.0.0.1 -b 1-1).
+    args.add ("-chardev");
+    args.add ("socket,id=usbip,host=127.0.0.1,port=3240,server=on,wait=off");
     // QEMU option values double their commas.
     auto file = [] (const juce::File& f) { return f.getFullPathName().replace (",", ",,"); };
     // The SD slot is always there, so a card can go in later; empty is a
