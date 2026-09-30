@@ -521,6 +521,13 @@ static void sp404_link_audio_in(void *opaque, const int16_t *lr, int frames)
     sp404_audio_input(&m->audio, lr, frames);
 }
 
+static void sp404_link_usb_audio_in(void *opaque, const int16_t *lr, int frames)
+{
+    SP404Machine *m = opaque;
+
+    sp404_audio_usb_input(&m->audio, lr, frames);
+}
+
 static void sp404_link_bmc(void *opaque, const uint8_t *pkt)
 {
     SP404Machine *m = opaque;
@@ -814,6 +821,7 @@ static void sp404_init(MachineState *machine)
         m->link.encoder = sp404_link_encoder;
         m->link.audio_in = sp404_link_audio_in;
         m->link.sdcard = sp404_link_sdcard;
+        m->link.usb_audio_in = sp404_link_usb_audio_in;
         sp404_link_init(&m->link, chr, SSD1309(m->oled));
         m->bmc.link = &m->link;
         m->audio.out = sp404_link_audio;

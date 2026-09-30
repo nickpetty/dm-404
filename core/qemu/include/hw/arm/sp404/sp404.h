@@ -368,6 +368,8 @@ void sp404_fx_process(SP404Fx *e, const float *stems, const float *in,
  * buses to the BMC, which mixes them to the main outputs, and RX line 0
  * brings back the inputs plus the resampling loopback.
  */
+#define SP404_USB_RING 8192
+
 typedef struct SP404Audio {
     SP404Fx *fx;                /* the BMC's effects, if loaded */
     FILE *wav;
@@ -382,10 +384,15 @@ typedef struct SP404Audio {
     int16_t in_ring[16384 * 2];
     unsigned in_head, in_count;
     int in_slot;
+    /* USB audio from the host (the DAW plugin), mixed with the inputs. */
+    int16_t usb_ring[SP404_USB_RING * 2];
+    unsigned usb_head, usb_count;
 } SP404Audio;
 
 /* Input audio (48 kHz stereo) from the frontend: the unit's inputs. */
 void sp404_audio_input(SP404Audio *a, const int16_t *lr, int frames);
+/* USB audio from the host (48 kHz stereo), kept to a short backlog. */
+void sp404_audio_usb_input(SP404Audio *a, const int16_t *lr, int frames);
 
 void sp404_audio_init(SP404Audio *a, IMXRTSAI *sai);
 
@@ -425,6 +432,7 @@ struct SP404Link {
     void (*encoder)(void *opaque, int steps);
     void (*audio_in)(void *opaque, const int16_t *lr, int frames);
     void (*sdcard)(void *opaque, const char *path);     /* NULL: eject */
+    void (*usb_audio_in)(void *opaque, const int16_t *lr, int frames);
 };
 
 void sp404_link_init(SP404Link *l, Chardev *chr, SSD1309State *oled);

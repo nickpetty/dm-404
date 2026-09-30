@@ -151,6 +151,30 @@ the window puts it back) and internal-drive backup/restore (to/from a folder
 of files). `sh tools/build_fatimg.sh` builds the same code as a CLI,
 build/fatimg.exe (create/info/ls/add/get/rm), for making test cards.
 
+## DAW plugin (Doom-404 Link)
+
+frontend/Plugin: a VST3 (AU on macOS) effect that carries the running
+app's unit into a DAW track: the track's audio goes in as USB audio (link
+0x87, its own queue in sp404-audio.c, capped at 60 ms, mixed into the
+inputs), the unit's output (pre-VOLUME, link 0x02) comes back. App and
+plugin share daw-link.shm in the data folder (frontend/Source/DawLink.h:
+SPSC rings of 48 kHz s16 stereo each way, MIDI rings reserved, heartbeats,
+a session counter, one owning instance); DawBridge.cpp is the app's end.
+The plugin holds a 60 ms cushion (reported as latency) and steers both
+rate converters by up to 0.5% to hold it; offline renders are silent.
+Output level defaults to +18 dB (the unit's raw level is low; the app's
+VOLUME default is the same). The app mutes itself while a plugin plays
+(Options menu). LinkHostTest (frontend/Tests) loads the VST3 like a DAW and
+runs it in real time at 44.1 kHz against the running app: `LinkHostTest
+PLUGIN.vst3 SECS`. `INSTALL_PLUGIN=1 sh tools/build_frontend.sh` copies
+it to %LOCALAPPDATA%\Programs\Common\VST3.
+
+Next for I/O parity: MIDI both ways through the plugin (the rings are
+there; the firmware takes MIDI as USB-MIDI packets over the BMC link),
+MIDI clock/transport from the DAW, more outputs (the bus stems), and in
+the end the unit's own USB port (i.MX USB controller + USB/IP) for
+Roland's SP-404 app and drivers.
+
 ## Working here
 
 - `sh tools/build.sh` then `sh tools/run.sh [secs]` (headless boot with a

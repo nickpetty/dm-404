@@ -156,6 +156,14 @@ void EmulatorLink::handleMessage (uint8_t type, const uint8_t* data, int len)
             copy (start1, size1, 0);
             copy (start2, size2, size1);
             audioFifo.finishedWrite (size1 + size2);   // excess is dropped
+            if (onAudioOut)
+            {
+                int16_t lr[1024 * 2];
+                const int n = juce::jmin (frames, 1024);
+                for (int i = 0; i < n * 2; ++i)
+                    lr[i] = (int16_t) (data[i * 2] | (data[i * 2 + 1] << 8));
+                onAudioOut (lr, n);
+            }
             break;
         }
 
@@ -275,6 +283,18 @@ void EmulatorLink::InputSender::run()
             link.send (0x85, buf, n * 4);
         }
     }
+}
+
+void EmulatorLink::sendUsbAudio (const int16_t* lr, int frames)
+{
+    uint8_t buf[1024 * 4];
+    frames = juce::jmin (frames, 1024);
+    for (int i = 0; i < frames * 2; ++i)
+    {
+        buf[i * 2] = (uint8_t) (lr[i] & 0xff);
+        buf[i * 2 + 1] = (uint8_t) ((lr[i] >> 8) & 0xff);
+    }
+    send (0x87, buf, frames * 4);
 }
 
 void EmulatorLink::sendSdCard (const juce::File& image)

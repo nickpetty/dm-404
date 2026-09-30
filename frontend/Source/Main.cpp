@@ -1,6 +1,7 @@
 #include "DebugPanel.h"
 #include "SdCardWindow.h"
 #include "Storage.h"
+#include "DawBridge.h"
 
 // First run: Roland's System Program is not ours to ship, so the user
 // points the app at the one they downloaded.
@@ -105,6 +106,11 @@ public:
             });
         };
 
+        // The DAW plugin's link: the unit's output to it, its audio in.
+        daw = std::make_unique<DawBridge> (link);
+        muteForDaw = settings->getBoolValue ("muteForDaw", true);
+        link.onAudioOut = [this] (const int16_t* lr, int frames) { daw->unitOutput (lr, frames); };
+
         // A development checkout's firmware and drives come over once; with
         // no firmware yet, the setup screen asks for it.
         adopted = Storage::adoptDevFiles();
@@ -121,10 +127,10 @@ public:
         audio.initialise (2, 2, saved.get(), true);
         if (saved == nullptr)
         {
-            auto setup = audio.getAudioDeviceSetup();
-            setup.sampleRate = 48000.0;
-            setup.bufferSize = 256;
-            audio.setAudioDeviceSetup (setup, true);
+            auto deviceSetup = audio.getAudioDeviceSetup();
+            deviceSetup.sampleRate = 48000.0;
+            deviceSetup.bufferSize = 256;
+            audio.setAudioDeviceSetup (deviceSetup, true);
         }
         audio.addChangeListener (this);
         audio.addAudioCallback (this);
@@ -145,6 +151,7 @@ public:
         audio.removeChangeListener (this);
         audio.removeAudioCallback (this);
         link.stop();
+        daw.reset();            // after the link thread, which feeds it
     }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colours::black); }
@@ -251,7 +258,7 @@ public:
     //==========================================================================
     // The menu bar.
     enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
-                   debugDrawerId, audioSettingsId };
+                   debugDrawerId, audioSettingsId, muteForDawId };
 
     juce::StringArray getMenuBarNames() override { return { "Unit", "View", "Options" }; }
 
@@ -273,7 +280,10 @@ public:
         else if (index == 1)
             m.addItem (debugDrawerId, "Debug drawer\t`", true, debugShown);
         else
+        {
             m.addItem (audioSettingsId, "Audio settings...");
+            m.addItem (muteForDawId, "Mute this app while a DAW plugin plays the unit", true, muteForDaw.load());
+        }
         return m;
     }
 
@@ -296,6 +306,11 @@ public:
             case openDataId:       Storage::dataDir().startAsProcess(); break;
             case debugDrawerId:    setDebugShown (! debugShown); break;
             case audioSettingsId:  showAudioSettings(); break;
+            case muteForDawId:
+                muteForDaw = ! muteForDaw.load();
+                settings->setValue ("muteForDaw", muteForDaw.load());
+                settings->saveIfNeeded();
+                break;
             default:               break;
         }
     }
@@ -537,6 +552,7 @@ private:
                             + "   underruns " + juce::String (underruns.load())
                             + "   skips " + juce::String (skips.load())
                             + "   late callbacks " + juce::String (lateCallbacks.load())
+                            + (daw != nullptr && daw->pluginConnected() ? "   DAW plugin connected" : "")
                             + "   device " + (dev ? dev->getName() + " @ " + juce::String (dev->getCurrentSampleRate()) : juce::String ("none"))
                             + "   right-click a control to learn its binding",
                         juce::dontSendNotification);
@@ -633,6 +649,12 @@ private:
 
         const int used = resampleL.process (ratio, inL.data(), out[0], numSamples, staged, 0);
         resampleR.process (ratio, inR.data(), out[1], numSamples, staged, 0);
+        if (muteForDaw.load() && daw != nullptr && daw->pluginConnected())
+        {
+            // The DAW plays the unit through the plugin: not twice.
+            juce::FloatVectorOperations::clear (out[0], numSamples);
+            juce::FloatVectorOperations::clear (out[1], numSamples);
+        }
         if (recording.load())
         {
             const juce::SpinLock::ScopedLockType sl (recordLock);
@@ -658,6 +680,8 @@ private:
     void audioDeviceStopped() override {}
 
     EmulatorLink link;
+    std::unique_ptr<DawBridge> daw;
+    std::atomic<bool> muteForDaw { true };      // silence the app while a DAW plugin plays the unit
     PanelComponent panel;
     DebugPanel debug;
     juce::Label status;

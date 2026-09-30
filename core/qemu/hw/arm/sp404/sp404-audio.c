@@ -123,6 +123,10 @@ static void sp404_audio_frame(void *opaque,
             in[0] = a->in_ring[a->in_head * 2] / 32768.0f;
             in[1] = a->in_ring[a->in_head * 2 + 1] / 32768.0f;
         }
+        if (a->usb_count) {
+            in[0] += a->usb_ring[a->usb_head * 2] / 32768.0f;
+            in[1] += a->usb_ring[a->usb_head * 2 + 1] / 32768.0f;
+        }
         sp404_fx_process(a->fx, stems, in, out);
         loop_l = lrintf(fmaxf(fminf(out[0], 15.f), -15.f) * 32768.0f);
         loop_r = lrintf(fmaxf(fminf(out[1], 15.f), -15.f) * 32768.0f);
@@ -143,6 +147,16 @@ static void sp404_audio_frame(void *opaque,
          */
         rx[0][0] = (uint16_t)sat16(loop_l);
         rx[0][1] = (uint16_t)sat16(loop_r);
+    }
+    if (a->usb_count && a->in_slot + 1 < (int)rx_words) {
+        /* USB audio (the DAW plugin) joins the inputs. */
+        int32_t sl = (int16_t)rx[0][a->in_slot] + a->usb_ring[a->usb_head * 2];
+        int32_t sr = (int16_t)rx[0][a->in_slot + 1] + a->usb_ring[a->usb_head * 2 + 1];
+
+        rx[0][a->in_slot] = (uint16_t)sat16(sl);
+        rx[0][a->in_slot + 1] = (uint16_t)sat16(sr);
+        a->usb_head = (a->usb_head + 1) % SP404_USB_RING;
+        a->usb_count--;
     }
     if (a->in_count && a->in_slot + 1 < (int)rx_words) {
         int16_t il = a->in_ring[a->in_head * 2], ir = a->in_ring[a->in_head * 2 + 1];
@@ -187,6 +201,31 @@ void sp404_audio_input(SP404Audio *a, const int16_t *lr, int frames)
         a->in_ring[at * 2] = lr[i * 2];
         a->in_ring[at * 2 + 1] = lr[i * 2 + 1];
         a->in_count++;
+    }
+}
+
+void sp404_audio_usb_input(SP404Audio *a, const int16_t *lr, int frames)
+{
+    for (int i = 0; i < frames; i++) {
+        if (a->usb_count == SP404_USB_RING) {
+            a->usb_head = (a->usb_head + 1) % SP404_USB_RING;
+            a->usb_count--;
+        }
+        unsigned at = (a->usb_head + a->usb_count) % SP404_USB_RING;
+        a->usb_ring[at * 2] = lr[i * 2];
+        a->usb_ring[at * 2 + 1] = lr[i * 2 + 1];
+        a->usb_count++;
+    }
+    /*
+     * The sender's clock is the DAW's, not ours: should it run ahead, the
+     * backlog (latency) would grow without end. Past 60 ms, skip back to
+     * 20 ms (the plugin steers its rate, so this is rare).
+     */
+    if (a->usb_count > 48 * 60) {
+        unsigned drop = a->usb_count - 48 * 20;
+
+        a->usb_head = (a->usb_head + drop) % SP404_USB_RING;
+        a->usb_count -= drop;
     }
 }
 

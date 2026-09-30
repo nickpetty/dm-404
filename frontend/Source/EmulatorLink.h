@@ -35,6 +35,11 @@ public:
     // The unit's inputs: 48 kHz stereo. Safe on the audio thread: it only
     // queues the frames; a separate thread sends them to the emulator.
     void sendAudioIn (const float* left, const float* right, int frames);
+    // USB audio from the computer (the DAW plugin): 48 kHz stereo s16.
+    void sendUsbAudio (const int16_t* lr, int frames);
+    // The unit's output as it arrives (48 kHz stereo s16), on the link
+    // thread, before the volume: what the unit sends over USB.
+    std::function<void (const int16_t* lr, int frames)> onAudioOut;
 
     // Gain applied to the emulator's audio: the unit's VOLUME knob is an
     // analog pot after the DAC, which the firmware never sees.

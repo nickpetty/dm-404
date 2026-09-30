@@ -22,6 +22,8 @@
  *   0x85 AUDIO    input audio, stereo 16-bit LE frames at 48 kHz
  *   0x86 SDCARD   no payload: take the SD card out; else the path of a raw
  *                 image (UTF-8) to put in. Answered with 0x04.
+ *   0x87 USBAUDIO audio from the host computer (the DAW plugin), stereo
+ *                 16-bit LE frames at 48 kHz, mixed with the inputs
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -118,6 +120,17 @@ static void link_message(SP404Link *l, uint8_t type, const uint8_t *p,
                 lr[i] = (int16_t)lduw_le_p(p + i * 2);
             }
             l->audio_in(l->opaque, lr, frames);
+        }
+        break;
+    case 0x87:
+        if (l->usb_audio_in) {
+            int16_t lr[1024 * 2];
+            int frames = MIN(len / 4, 1024);
+
+            for (int i = 0; i < frames * 2; i++) {
+                lr[i] = (int16_t)lduw_le_p(p + i * 2);
+            }
+            l->usb_audio_in(l->opaque, lr, frames);
         }
         break;
     case 0x86:
