@@ -158,9 +158,10 @@ the Ghidra scripts, `tools/fxmap.py`, `tools/usbip_probe.py`, and more).
 
 ## Using it
 
-- **Pads** play when you click them: nearer the top hits harder. **Knobs**
-  turn by dragging or with the mouse wheel. **VALUE** turns by dragging or
-  the wheel, and a click pushes it (enter).
+- **Pads** play when you click them: the upper part of a pad hits at full
+  velocity, lower down softer. **Knobs** turn by dragging or with the mouse
+  wheel. **VALUE** turns by dragging or the wheel, and a click pushes it
+  (enter).
 - **SHIFT**: a click holds it until the next key or pad, or hold the
   computer's Shift key. **Ctrl-click** any other key to hold it (for example
   MFX while choosing an effect), and click it again to let go.

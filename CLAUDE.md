@@ -34,7 +34,7 @@ unpacks code to ITCM (0x400), DTCM, OCRAM and SDRAM 0x80000000
 | SAI1 | 0x40384000 | codec: TDM 16x32-bit slots, 4 TX lines, eDMA ch0-3 chained, RX ch4 |
 | uSDHC1 / uSDHC2 | 0x402C0000 / 0x402C4000 | SD card (A:) / eMMC (B:, exFAT) |
 | PIT ch0 → XBAR 56→103 → ADC_ETC trig0 → ADC1 ch 4,5,6,3 | | analog scan, 2 kHz, through a mux addressed by GPIO2.27 (bit0), .30, .31 |
-| ADC1 ch4/ch5 mux 0-7 | | the 16 pads (pressure; idle reads 4095; map in frontend/panel.json) |
+| ADC1 ch4/ch5 mux 0-7 | | the 16 pads (pressure; idle reads 4095; map in frontend/panel.json; a sample plays at its recorded level only from a reading of 100 or less, gain ~ velocity squared: PanelComponent::press has the measured curve) |
 | ADC1 ch6 mux 1/2/3, mux 4 | | CTRL 1/2/3; SUB PAD (pressure, key 0x13, LED 0x34) |
 | GPIO2.23-25 rows × GPIO2.20,21,22,28,26 cols | | key matrix, active low; IDs from table 0x82e48774 (FUN_8005da10) |
 | GPIO2.18/19 | | VALUE encoder quadrature, active low, 4 transitions per detent |

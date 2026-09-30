@@ -529,9 +529,24 @@ void PanelComponent::press (PanelControl& c, bool down, float velocity)
     {
         // Pads are pressure sensors read inverted: released reads full
         // scale, a hard hit near zero. The firmware gets the velocity from
-        // the pressure at the first scan after the hit.
-        const int pressure = down ? juce::jlimit (200, 3900, (int) (velocity * 3900.0f)) : 0;
-        link.sendKnob (b.adc, b.channel, b.mux, 4095 - pressure);
+        // the reading at the first scan after the hit, steeply: a sample
+        // plays at its recorded level only from a reading of 100 or less
+        // (measured, below). velocity is the level wanted (1 = full), as
+        // a velocity is: the gain is its square.
+        static constexpr float reading[] = { 60, 200, 300, 400, 600, 900, 1200, 1600, 2000, 2600, 3200, 3700 };
+        static constexpr float gain[]    = { 1.0f, 0.583f, 0.441f, 0.323f, 0.236f, 0.205f,
+                                             0.181f, 0.150f, 0.126f, 0.087f, 0.047f, 0.016f };
+        int value = 4095;
+        if (down)
+        {
+            const float g = juce::jlimit (gain[11], 1.0f, velocity * velocity);
+            int i = 0;
+            while (i < 10 && gain[i + 1] >= g)
+                ++i;
+            const float t = (gain[i] - g) / (gain[i] - gain[i + 1]);
+            value = (int) std::round (reading[i] + t * (reading[i + 1] - reading[i]));
+        }
+        link.sendKnob (b.adc, b.channel, b.mux, value);
     }
     repaint();
 }
@@ -627,10 +642,11 @@ void PanelComponent::mouseDown (const juce::MouseEvent& e)
         dragStartValue = c->value;
     else
     {
-        // Pads: clicking nearer the top hits harder.
+        // Pads: the upper 60% hits at full velocity (a firm hit on the
+        // unit); below that, softer towards the bottom edge.
         auto r = toScreen (c->bounds);
-        const float v = 1.0f - (e.position.y - r.getY()) / juce::jmax (1.0f, r.getHeight());
-        press (*c, true, 0.35f + 0.65f * juce::jlimit (0.0f, 1.0f, v));
+        const float v = juce::jlimit (0.0f, 1.0f, 1.0f - (e.position.y - r.getY()) / juce::jmax (1.0f, r.getHeight()));
+        press (*c, true, v >= 0.4f ? 1.0f : 0.3f + 0.7f * v / 0.4f);
     }
 }
 

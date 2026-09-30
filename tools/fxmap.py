@@ -21,6 +21,8 @@ FXMAP_LEDS=1 also prints LED writes on pages other than 0/1 (blink, pulse);
 FXMAP_LEDS=all prints every LED write.
 FXMAP_LOG=FILE keeps the emulator's log (with SP404_TRACE=audio: per-slot
 levels once a second, and the peaks of what is sampled, RX words 0/1).
+FXMAP_EMMC=IMG boots another internal drive; FXMAP_WRITE=1 lets the run
+write to it (snapshot=off: never on build/emmc.img).
 FXMAP_INPUT=HZ[,LEVEL] feeds the unit's input a sine (LEVEL of 32767, default
 8000) from the start, as the app streams its audio input. -o FILE also writes the boot-time dump (all writes before the first action).
 Every write is "F0 41 10 00 00 00 00 08 12 a a a a d.. sum F7".
@@ -84,8 +86,8 @@ def main():
     q = subprocess.Popen([exe, '-M', 'sp404mk2,flash=%s,link=link' % os.path.join(ROOT, 'build', 'flash.bin'),
                           '-bios', os.path.join(ROOT, 'firmware', 'SP404MKII_APP1.bin'),
                           '-chardev', 'socket,id=link,host=127.0.0.1,port=%d,server=on,wait=on' % port,
-                          '-drive', 'if=sd,index=1,format=raw,snapshot=on,file=' +
-                          os.path.join(ROOT, 'build', 'emmc.img'),
+                          '-drive', 'if=sd,index=1,format=raw,snapshot=%s,file=' % ('off' if os.environ.get('FXMAP_WRITE') else 'on') +
+                          os.environ.get('FXMAP_EMMC') or os.path.join(ROOT, 'build', 'emmc.img'),
                           '-nographic', '-serial', 'none',
                           '-monitor', 'tcp:127.0.0.1:%d,server,nowait' % (port + 1)] +
                          (['-D', os.environ['FXMAP_LOG']] if os.environ.get('FXMAP_LOG') else []),
