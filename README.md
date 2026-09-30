@@ -5,8 +5,8 @@ firmware** (System Program 5.52) on an emulated NXP i.MX RT1060, in a fork of
 QEMU, with a desktop app that looks and plays like the hardware and a DAW
 plugin that brings it into your sessions.
 
-Named after Dr. Doom, not the game. An independent project: not affiliated
-with or endorsed by Roland (see [Licensing](#licensing)).
+An independent project: not affiliated with or endorsed by Roland (see
+[Licensing](#licensing)).
 
 > **You need your own copy of Roland's firmware.** Nothing of Roland's is in
 > this repository or in anything built from it. The app asks for the System
