@@ -37,9 +37,24 @@ public:
     void sendAudioIn (const float* left, const float* right, int frames);
     // USB audio from the computer (the DAW plugin): 48 kHz stereo s16.
     void sendUsbAudio (const int16_t* lr, int frames);
+    // USB MIDI from the computer, each packet due at a frame of the unit's
+    // output since this start (it reaches the firmware just before then).
+    struct UsbMidiEvent
+    {
+        uint32_t frame;
+        uint8_t packet[4];
+    };
+    void sendUsbMidi (const std::vector<UsbMidiEvent>&);
+    // Counts emulator starts (connections): frame counts begin again at each.
+    uint32_t getStartCount() const { return startCount.load(); }
+
     // The unit's output as it arrives (48 kHz stereo s16), on the link
-    // thread, before the volume: what the unit sends over USB.
-    std::function<void (const int16_t* lr, int frames)> onAudioOut;
+    // thread, before the volume: what the unit sends over USB; with the
+    // number of frames since this start, after these.
+    std::function<void (const int16_t* lr, int frames, uint32_t framesAfter)> onAudioOut;
+    // The unit's MIDI out (a USB-MIDI packet whose cable bits say where:
+    // UsbMidi.h), stamped with the output frame it happened at; link thread.
+    std::function<void (uint32_t frame, const uint8_t* packet)> onUnitMidi;
 
     // Gain applied to the emulator's audio: the unit's VOLUME knob is an
     // analog pot after the DAC, which the firmware never sees.
@@ -73,6 +88,8 @@ private:
     std::unique_ptr<juce::StreamingSocket> socket;
     juce::CriticalSection sendLock;
     std::atomic<bool> connected { false };
+    std::atomic<uint32_t> startCount { 0 };
+    uint32_t unitFrames = 0;            // output frames received since this start
 
     mutable juce::SpinLock screenLock;
     Screen screen {};

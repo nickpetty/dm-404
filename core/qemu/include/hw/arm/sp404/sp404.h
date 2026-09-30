@@ -369,6 +369,8 @@ void sp404_fx_process(SP404Fx *e, const float *stems, const float *in,
  * brings back the inputs plus the resampling loopback.
  */
 #define SP404_USB_RING 8192
+#define SP404_USB_MIDI 512
+#define SP404_USB_TARGET (48 * 20)      /* the USB audio backlog kept: 20 ms */
 
 typedef struct SP404Audio {
     SP404Fx *fx;                /* the BMC's effects, if loaded */
@@ -387,12 +389,14 @@ typedef struct SP404Audio {
     /* USB audio from the host (the DAW plugin), mixed with the inputs. */
     int16_t usb_ring[SP404_USB_RING * 2];
     unsigned usb_head, usb_count;
+    bool usb_primed;            /* playing (had SP404_USB_TARGET in hand) */
 } SP404Audio;
 
 /* Input audio (48 kHz stereo) from the frontend: the unit's inputs. */
 void sp404_audio_input(SP404Audio *a, const int16_t *lr, int frames);
 /* USB audio from the host (48 kHz stereo), kept to a short backlog. */
 void sp404_audio_usb_input(SP404Audio *a, const int16_t *lr, int frames);
+
 
 void sp404_audio_init(SP404Audio *a, IMXRTSAI *sai);
 
@@ -402,13 +406,14 @@ void sp404_audio_init(SP404Audio *a, IMXRTSAI *sai);
  */
 typedef struct SP404Link SP404Link;
 
-typedef struct SP404BMC {
+typedef struct SP404BMC SP404BMC;
+struct SP404BMC {
     IMXRTLPUART *uart;
     SP404Link *link;            /* copies of what the firmware sends */
     SP404Fx *fx;                /* gets the effect parameter writes */
     uint8_t pkt[4];
     unsigned pkt_len;
-} SP404BMC;
+};
 
 void sp404_bmc_init(SP404BMC *bmc, IMXRTLPUART *uart);
 /* A packet from the BMC to the firmware (pads, SHIFT, ...). */
@@ -433,6 +438,14 @@ struct SP404Link {
     void (*audio_in)(void *opaque, const int16_t *lr, int frames);
     void (*sdcard)(void *opaque, const char *path);     /* NULL: eject */
     void (*usb_audio_in)(void *opaque, const int16_t *lr, int frames);
+    /* USB MIDI from the host, when its output frame comes (to the BMC). */
+    void (*usb_midi_due)(void *opaque, const uint8_t *pkt);
+    uint64_t out_frames;        /* audio frames sent: the MIDI stamps both ways */
+    struct {
+        uint64_t frame;
+        uint8_t pkt[4];
+    } midi[SP404_USB_MIDI];
+    unsigned midi_head, midi_count;
 };
 
 void sp404_link_init(SP404Link *l, Chardev *chr, SSD1309State *oled);

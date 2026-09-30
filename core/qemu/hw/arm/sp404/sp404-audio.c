@@ -123,7 +123,7 @@ static void sp404_audio_frame(void *opaque,
             in[0] = a->in_ring[a->in_head * 2] / 32768.0f;
             in[1] = a->in_ring[a->in_head * 2 + 1] / 32768.0f;
         }
-        if (a->usb_count) {
+        if (a->usb_primed && a->usb_count) {
             in[0] += a->usb_ring[a->usb_head * 2] / 32768.0f;
             in[1] += a->usb_ring[a->usb_head * 2 + 1] / 32768.0f;
         }
@@ -148,7 +148,18 @@ static void sp404_audio_frame(void *opaque,
         rx[0][0] = (uint16_t)sat16(loop_l);
         rx[0][1] = (uint16_t)sat16(loop_r);
     }
-    if (a->usb_count && a->in_slot + 1 < (int)rx_words) {
+    /*
+     * USB audio plays from a steady backlog of about 20 ms (it arrives in
+     * the DAW's blocks): it waits for that much at the start and after
+     * running dry, so its delay (and its MIDI's) stays put for the plugin
+     * to report and the DAW to compensate.
+     */
+    if (!a->usb_count) {
+        a->usb_primed = false;
+    } else if (!a->usb_primed && a->usb_count >= SP404_USB_TARGET) {
+        a->usb_primed = true;
+    }
+    if (a->usb_primed && a->in_slot + 1 < (int)rx_words) {
         /* USB audio (the DAW plugin) joins the inputs. */
         int32_t sl = (int16_t)rx[0][a->in_slot] + a->usb_ring[a->usb_head * 2];
         int32_t sr = (int16_t)rx[0][a->in_slot + 1] + a->usb_ring[a->usb_head * 2 + 1];
@@ -222,7 +233,7 @@ void sp404_audio_usb_input(SP404Audio *a, const int16_t *lr, int frames)
      * 20 ms (the plugin steers its rate, so this is rare).
      */
     if (a->usb_count > 48 * 60) {
-        unsigned drop = a->usb_count - 48 * 20;
+        unsigned drop = a->usb_count - SP404_USB_TARGET;
 
         a->usb_head = (a->usb_head + drop) % SP404_USB_RING;
         a->usb_count -= drop;

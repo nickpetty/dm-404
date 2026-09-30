@@ -6,13 +6,18 @@
 //   toUnit    the DAW's audio into the unit (USB audio in): plugin writes,
 //             app reads and sends it to the emulator
 //   fromUnit  the unit's output (USB audio out): app writes, plugin reads
-//   midiToUnit / midiFromUnit   USB-MIDI packets (reserved)
+//   midiToUnit    MIDI into the unit: plugin writes, app sends it on
+//   midiFromUnit  the unit's MIDI out: app writes, plugin reads
 //
 // Audio is 48 kHz stereo, 16-bit, the unit's own rate; the plugin converts
-// to and from the DAW's rate. Each ring has one writer and one reader, and
-// free-running 32-bit indices. The app stamps appAlive and bumps session
-// when it (re)starts; a plugin instance claims the link (pluginOwner) and
-// stamps pluginAlive, so only one instance at a time carries audio.
+// to and from the DAW's rate. MIDI is USB-MIDI packets (UsbMidi.h), each
+// stamped with the frame of the audio ring it belongs with (the toUnit
+// frame it is due at, the fromUnit frame it happened at), so it keeps its
+// timing against the audio both ways. Each ring has one writer and one
+// reader, and free-running 32-bit indices. The app stamps appAlive, shares
+// its VOLUME gain, and bumps session when it (re)starts; a plugin instance
+// claims the link (pluginOwner) and stamps pluginAlive, so only one
+// instance at a time carries the unit.
 
 #include <JuceHeader.h>
 #include <atomic>
@@ -21,11 +26,15 @@
 namespace dawlink
 {
     constexpr uint32_t magic = 0x34303444;      // "D404"
-    constexpr uint32_t version = 1;
+    constexpr uint32_t version = 2;
     constexpr uint32_t rate = 48000;
     constexpr uint32_t ringFrames = 32768;      // 0.68 s; a power of two
     constexpr uint32_t midiPackets = 4096;
     constexpr int64_t staleMs = 1000;           // a heartbeat older than this: gone
+    // MIDI to the unit is stamped this far (20 ms) beyond the plugin's
+    // output cushion, so it arrives before the unit gets there despite the
+    // cushion's wander and the trip: part of the plugin's latency.
+    constexpr uint32_t midiLead = 960;
 
     struct AudioRing
     {
@@ -34,11 +43,17 @@ namespace dawlink
         int16_t data[ringFrames * 2];
     };
 
+    struct MidiEvent
+    {
+        uint32_t frame;                         // audio ring frame it goes with
+        uint8_t packet[4];                      // USB-MIDI
+    };
+
     struct MidiRing
     {
         uint32_t write, read;
         uint32_t pad[14];
-        uint32_t data[midiPackets];
+        MidiEvent data[midiPackets];
     };
 
     struct Shared
@@ -46,7 +61,8 @@ namespace dawlink
         uint32_t magic, version, session, rate;
         int64_t appAlive, pluginAlive;          // juce::Time::currentTimeMillis()
         uint64_t pluginOwner;                   // the instance holding the link, 0 = none
-        uint32_t pad[8];
+        float volume;                           // the app's VOLUME, as a gain on the unit's output
+        uint32_t pad[7];
         AudioRing toUnit, fromUnit;
         MidiRing midiToUnit, midiFromUnit;
     };
@@ -146,4 +162,36 @@ namespace dawlink
     {
         return juce::Time::currentTimeMillis() - stamp < staleMs;
     }
+
+    // MIDI: one event in (false when full), and the oldest out, in order.
+    inline bool push (MidiRing& r, const MidiEvent& e)
+    {
+        const uint32_t w = at (r.write).load (std::memory_order_relaxed);
+        if (w - at (r.read).load (std::memory_order_acquire) >= midiPackets)
+            return false;
+        r.data[w & (midiPackets - 1)] = e;
+        at (r.write).store (w + 1, std::memory_order_release);
+        return true;
+    }
+
+    inline const MidiEvent* peek (MidiRing& r)
+    {
+        const uint32_t rd = at (r.read).load (std::memory_order_relaxed);
+        if (at (r.write).load (std::memory_order_acquire) == rd)
+            return nullptr;
+        return &r.data[rd & (midiPackets - 1)];
+    }
+
+    inline void pop (MidiRing& r)
+    {
+        at (r.read).fetch_add (1, std::memory_order_release);
+    }
+
+    inline void drain (MidiRing& r)
+    {
+        at (r.read).store (at (r.write).load (std::memory_order_acquire), std::memory_order_release);
+    }
+
+    // Frame numbers wrap: a is before b.
+    inline bool before (uint32_t a, uint32_t b) { return (int32_t) (a - b) < 0; }
 }

@@ -1,11 +1,13 @@
 #pragma once
 
 #include "../Source/DawLink.h"
+#include "../Source/UsbMidi.h"
 
-// Doom-404 Link: the SP-404MKII emulator as a DAW plugin's audio. The
-// track's audio goes into the unit (as USB audio from a computer would),
-// and the unit's output comes back out, from the running Doom-404 app over
-// shared memory (DawLink.h).
+// Doom-404 Link: the SP-404MKII emulator in a DAW track. The track's audio
+// and MIDI go into the unit (as USB audio and MIDI from a computer would),
+// and the unit's output and MIDI out come back, from the running Doom-404
+// app over shared memory (DawLink.h). MIDI keeps its place against the
+// audio both ways; the DAW's transport can drive the unit as MIDI clock.
 //
 // The unit runs on its own clock, so the plugin keeps a cushion of its
 // output (reported as latency, for delay compensation) and steers its rate
@@ -37,22 +39,32 @@ public:
     void getStateInformation (juce::MemoryBlock&) override;
     void setStateInformation (const void*, int) override;
 
-    // Levels: the unit's output is its raw digital level, well below full
-    // scale (the app's VOLUME knob adds +18 dB by default), so the output
-    // starts there too. The input goes into the unit as it is.
+    // Levels: the unit's output follows the app's VOLUME knob, then this
+    // trim; the input goes into the unit as it is, then this level.
     juce::AudioParameterFloat* outputDb = nullptr;
     juce::AudioParameterFloat* inputDb = nullptr;
+    // MIDI clock, Song Position and Start/Continue/Stop from the DAW's
+    // transport, so the unit can follow its tempo (with its sync setting).
+    juce::AudioParameterBool* sendClock = nullptr;
 
     enum class State { noApp, otherInstance, waiting, running, offline };
     State getState() const { return state.load(); }
     int getUnderruns() const { return underruns.load(); }
-    double getLatencyMs() const { return targetFrames * 1000.0 / dawlink::rate; }
+    double getLatencyMs() const { return (targetFrames + dawlink::midiLead) * 1000.0 / dawlink::rate; }
 
 private:
     void timerCallback() override;
     bool claim (dawlink::Shared&);
     void toUnit (const juce::AudioBuffer<float>&, int n);
-    bool fromUnit (juce::AudioBuffer<float>&, int n);
+    // Fills the block from the unit; says which ring frame its first sample
+    // came from, and the frames per sample.
+    bool fromUnit (juce::AudioBuffer<float>&, int n, uint32_t& base, double& ratio);
+    void clock (int n);
+
+    usbmidi::Decoder fromDecoder;
+    juce::MidiBuffer clockEvents;
+    bool wasPlaying = false;
+    double expectedPpq = 0.0;
 
     dawlink::Map map;
     std::atomic<dawlink::Shared*> shared { nullptr };

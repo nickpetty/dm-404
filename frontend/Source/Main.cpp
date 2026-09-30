@@ -2,6 +2,7 @@
 #include "SdCardWindow.h"
 #include "Storage.h"
 #include "DawBridge.h"
+#include "MidiPorts.h"
 
 // First run: Roland's System Program is not ours to ship, so the user
 // points the app at the one they downloaded.
@@ -106,10 +107,20 @@ public:
             });
         };
 
+        restoreBackground();
+
         // The DAW plugin's link: the unit's output to it, its audio in.
         daw = std::make_unique<DawBridge> (link);
         muteForDaw = settings->getBoolValue ("muteForDaw", true);
-        link.onAudioOut = [this] (const int16_t* lr, int frames) { daw->unitOutput (lr, frames); };
+        link.onAudioOut = [this] (const int16_t* lr, int frames, uint32_t after) { daw->unitOutput (lr, frames, after); };
+        // The unit's MIDI out: USB to the plugin, the OUT jack to a MIDI port.
+        midiPorts = std::make_unique<MidiPorts> (link, *settings);
+        link.onUnitMidi = [this] (uint32_t frame, const uint8_t* p)
+        {
+            if ((p[0] >> 4) & usbmidi::usbBit)
+                daw->unitMidi (frame, p);
+            midiPorts->unitMidi (p);
+        };
 
         // A development checkout's firmware and drives come over once; with
         // no firmware yet, the setup screen asks for it.
@@ -152,6 +163,7 @@ public:
         audio.removeAudioCallback (this);
         link.stop();
         daw.reset();            // after the link thread, which feeds it
+        midiPorts.reset();
     }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colours::black); }
@@ -258,7 +270,8 @@ public:
     //==========================================================================
     // The menu bar.
     enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
-                   debugDrawerId, audioSettingsId, muteForDawId };
+                   debugDrawerId, audioSettingsId, muteForDawId, backgroundId, resetBackgroundId,
+                   midiInBase = 1000, midiOutBase = 2000 };     // + device index + 1 (0: none)
 
     juce::StringArray getMenuBarNames() override { return { "Unit", "View", "Options" }; }
 
@@ -278,17 +291,50 @@ public:
             m.addItem (openDataId, "Open data folder");
         }
         else if (index == 1)
+        {
             m.addItem (debugDrawerId, "Debug drawer\t`", true, debugShown);
+            m.addSeparator();
+            m.addItem (backgroundId, "Background image...");
+            m.addItem (resetBackgroundId, "Plain background", panel.hasCustomBackground());
+        }
         else
         {
             m.addItem (audioSettingsId, "Audio settings...");
             m.addItem (muteForDawId, "Mute this app while a DAW plugin plays the unit", true, muteForDaw.load());
+            m.addSeparator();
+            // The unit's MIDI jacks, as the computer's MIDI ports.
+            auto ports = [] (juce::PopupMenu& sub, int base, const juce::Array<juce::MidiDeviceInfo>& list,
+                             const juce::String& current)
+            {
+                sub.addItem (base, "None", true, current.isEmpty());
+                for (int i = 0; i < list.size(); ++i)
+                    sub.addItem (base + 1 + i, list[i].name, true, list[i].identifier == current);
+            };
+            midiInList = juce::MidiInput::getAvailableDevices();
+            midiOutList = juce::MidiOutput::getAvailableDevices();
+            juce::PopupMenu in, out;
+            ports (in, midiInBase, midiInList, midiPorts->inputId());
+            ports (out, midiOutBase, midiOutList, midiPorts->outputId());
+            m.addSubMenu ("MIDI IN (plays the unit)", in);
+            m.addSubMenu ("MIDI OUT (from the unit)", out);
         }
         return m;
     }
 
     void menuItemSelected (int id, int) override
     {
+        if (id >= midiInBase && id < midiOutBase)
+        {
+            const int i = id - midiInBase - 1;
+            midiPorts->setInput (i >= 0 && i < midiInList.size() ? midiInList[i].identifier : juce::String());
+            return;
+        }
+        if (id >= midiOutBase)
+        {
+            const int i = id - midiOutBase - 1;
+            midiPorts->setOutput (i >= 0 && i < midiOutList.size() ? midiOutList[i].identifier : juce::String());
+            return;
+        }
         switch (id)
         {
             case sdWindowId:       showSdCard(); break;
@@ -306,6 +352,13 @@ public:
             case openDataId:       Storage::dataDir().startAsProcess(); break;
             case debugDrawerId:    setDebugShown (! debugShown); break;
             case audioSettingsId:  showAudioSettings(); break;
+            case backgroundId:     chooseBackground(); break;
+            case resetBackgroundId:
+                panel.setCustomBackground ({}, {});
+                settings->removeValue ("background");
+                settings->removeValue ("backgroundText");
+                settings->saveIfNeeded();
+                break;
             case muteForDawId:
                 muteForDaw = ! muteForDaw.load();
                 settings->setValue ("muteForDaw", muteForDaw.load());
@@ -313,6 +366,91 @@ public:
                 break;
             default:               break;
         }
+    }
+
+    // A picture for the panel, then the colour of the text printed over it
+    // (previewed live). The picture is copied into the data folder.
+    void chooseBackground()
+    {
+        chooser = std::make_unique<juce::FileChooser> ("Background image",
+                                                       juce::File::getSpecialLocation (juce::File::userPicturesDirectory),
+                                                       "*.png;*.jpg;*.jpeg;*.gif;*.bmp");
+        chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                              [this] (const juce::FileChooser& fc)
+        {
+            const auto src = fc.getResult();
+            auto image = juce::ImageFileFormat::loadFrom (src);
+            if (! image.isValid())
+            {
+                if (src != juce::File())
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Background",
+                                                            "Could not read that image.");
+                return;
+            }
+            const auto dest = Storage::dataDir().getChildFile ("background" + src.getFileExtension().toLowerCase());
+            for (auto& old : Storage::dataDir().findChildFiles (juce::File::findFiles, false, "background.*"))
+                if (old != src)
+                    old.deleteFile();
+            if (src != dest)
+                src.copyFileTo (dest);
+            const auto previous = panel.hasCustomBackground() ? panel.getTextColour() : juce::Colours::white;
+            panel.setCustomBackground (image, previous);
+            settings->setValue ("background", dest.getFullPathName());
+            settings->setValue ("backgroundText", previous.toString());
+            settings->saveIfNeeded();
+            chooseTextColour();
+        });
+    }
+
+    void chooseTextColour()
+    {
+        struct Picker : juce::Component, juce::ChangeListener
+        {
+            Picker (PanelComponent& p, juce::PropertiesFile& s) : panel (p), settings (s)
+            {
+                selector.setCurrentColour (panel.getTextColour());
+                selector.addChangeListener (this);
+                addAndMakeVisible (selector);
+                addAndMakeVisible (note);
+                note.setText ("The colour of the text printed on the panel.", juce::dontSendNotification);
+                setSize (360, 420);
+            }
+            void resized() override
+            {
+                auto r = getLocalBounds().reduced (8);
+                note.setBounds (r.removeFromTop (24));
+                selector.setBounds (r);
+            }
+            void changeListenerCallback (juce::ChangeBroadcaster*) override
+            {
+                panel.setTextColour (selector.getCurrentColour());
+                settings.setValue ("backgroundText", selector.getCurrentColour().toString());
+                settings.saveIfNeeded();
+            }
+            PanelComponent& panel;
+            juce::PropertiesFile& settings;
+            juce::ColourSelector selector { juce::ColourSelector::showColourAtTop | juce::ColourSelector::showSliders
+                                            | juce::ColourSelector::showColourspace };
+            juce::Label note;
+        };
+        juce::DialogWindow::LaunchOptions o;
+        o.content.setOwned (new Picker (panel, *settings));
+        o.dialogTitle = "Text colour";
+        o.dialogBackgroundColour = juce::Colour (0xff1c1d20);
+        o.escapeKeyTriggersCloseButton = true;
+        o.useNativeTitleBar = true;
+        o.resizable = false;
+        o.launchAsync();
+    }
+
+    void restoreBackground()
+    {
+        const juce::File f (settings->getValue ("background"));
+        if (settings->getValue ("background").isEmpty() || ! f.existsAsFile())
+            return;
+        auto image = juce::ImageFileFormat::loadFrom (f);
+        if (image.isValid())
+            panel.setCustomBackground (image, juce::Colour::fromString (settings->getValue ("backgroundText", "ffffffff")));
     }
 
     void showSdCard()
@@ -681,6 +819,8 @@ private:
 
     EmulatorLink link;
     std::unique_ptr<DawBridge> daw;
+    std::unique_ptr<MidiPorts> midiPorts;
+    juce::Array<juce::MidiDeviceInfo> midiInList, midiOutList;     // as last shown in the menu
     std::atomic<bool> muteForDaw { true };      // silence the app while a DAW plugin plays the unit
     PanelComponent panel;
     DebugPanel debug;

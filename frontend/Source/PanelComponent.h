@@ -88,6 +88,19 @@ public:
     // Tap a control by its printed name (for scripted tests).
     void tap (const juce::String& name);
 
+    // A picture stretched over the panel in place of its body and
+    // backdrops, and the colour of the printed text over it. An invalid
+    // image goes back to the plain panel (and its text colour).
+    void setCustomBackground (const juce::Image& image, juce::Colour text)
+    {
+        background = image;
+        textColour = image.isValid() ? text : juce::Colour (defaultText);
+        repaint();
+    }
+    bool hasCustomBackground() const { return background.isValid(); }
+    juce::Colour getTextColour() const { return textColour; }
+    void setTextColour (juce::Colour c) { textColour = c; repaint(); }
+
     static juce::File bindingsFile();
     void loadBindings();
     void saveBindings() const;
@@ -120,5 +133,8 @@ private:
     std::array<LedMode, 128> ledMode {};
     double animTime = 0.0;          // seconds, advanced by the timer
     uint8_t shown (int idx) const;
+    static constexpr juce::uint32 defaultText = 0xffd8d8d0;
+    juce::Image background;
+    juce::Colour textColour { defaultText };
     void timerCallback() override;
 };

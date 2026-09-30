@@ -155,25 +155,46 @@ build/fatimg.exe (create/info/ls/add/get/rm), for making test cards.
 
 frontend/Plugin: a VST3 (AU on macOS) effect that carries the running
 app's unit into a DAW track: the track's audio goes in as USB audio (link
-0x87, its own queue in sp404-audio.c, capped at 60 ms, mixed into the
-inputs), the unit's output (pre-VOLUME, link 0x02) comes back. App and
-plugin share daw-link.shm in the data folder (frontend/Source/DawLink.h:
-SPSC rings of 48 kHz s16 stereo each way, MIDI rings reserved, heartbeats,
-a session counter, one owning instance); DawBridge.cpp is the app's end.
-The plugin holds a 60 ms cushion (reported as latency) and steers both
-rate converters by up to 0.5% to hold it; offline renders are silent.
-Output level defaults to +18 dB (the unit's raw level is low; the app's
-VOLUME default is the same). The app mutes itself while a plugin plays
-(Options menu). LinkHostTest (frontend/Tests) loads the VST3 like a DAW and
-runs it in real time at 44.1 kHz against the running app: `LinkHostTest
-PLUGIN.vst3 SECS`. `INSTALL_PLUGIN=1 sh tools/build_frontend.sh` copies
-it to %LOCALAPPDATA%\Programs\Common\VST3.
+0x87, its own queue in sp404-audio.c, played from a steady 20 ms backlog,
+mixed into the inputs), the unit's output (pre-VOLUME, link 0x02) comes
+back, scaled by the app's VOLUME (shared) and the plugin's trim. App and
+plugin share daw-link.shm in the data folder (frontend/Source/DawLink.h,
+version 2: SPSC rings of 48 kHz s16 stereo each way, stamped MIDI rings
+each way, heartbeats, a session counter, one owning instance);
+DawBridge.cpp is the app's end. The plugin holds a 60 ms cushion and
+steers both rate converters by up to 0.5% to hold it; offline renders are
+silent. The app mutes itself while a plugin plays (Options menu).
 
-Next for I/O parity: MIDI both ways through the plugin (the rings are
-there; the firmware takes MIDI as USB-MIDI packets over the BMC link),
-MIDI clock/transport from the DAW, more outputs (the bus stems), and in
-the end the unit's own USB port (i.MX USB controller + USB/IP) for
-Roland's SP-404 app and drivers.
+MIDI: the firmware takes MIDI as USB-MIDI packets from the BMC and plays
+cables 8 and 9 (others ignored); its MIDI out goes on cable 9 (taken as
+bit 3 USB + bit 0 the OUT jack), with the pad's note (pad 3 = note 50 on
+channel 1). Frontend/Source/UsbMidi.h converts. Timing is by frames of the
+unit's output (link out_frames, reset at connection): MIDI in (0x88) is
+stamped with the output frame it should sound at (the plugin's output
+position + its cushion + midiLead 20 ms) and handed to the firmware when
+the unit gets there, so its sound comes back exactly one reported latency
+(80 ms) later whatever the buffers do; MIDI out (0x05) is stamped with the
+frame it happened at and the plugin emits it at that frame's sample. The
+firmware reacts within ~4 ms. The plugin sends MIDI clock, Song Position
+and Start/Continue/Stop from the DAW transport; the unit follows it as it
+is (its tempo DT1 went to 140.0). The standalone app has the MIDI IN/OUT
+jacks as computer MIDI ports (Options menu, cable 9 in, bit 0 out).
+
+LinkHostTest (frontend/Tests) loads the VST3 like a DAW and runs it in
+real time at 44.1 kHz against the running app: `LinkHostTest PLUGIN.vst3
+SECS [--notes] [--play BPM]` (notes and their sound's delay, a fake
+transport, the unit's MIDI out, the cushion's range).
+`INSTALL_PLUGIN=1 sh tools/build_frontend.sh` copies it to
+%LOCALAPPDATA%\Programs\Common\VST3.
+
+Next for I/O parity: more outputs (the bus stems), and in the end the
+unit's own USB port (i.MX USB controller + USB/IP) for Roland's SP-404 app
+and drivers.
+
+The panel can take a background picture (View menu; copied to the data
+folder as background.*; stretched, in place of the body and backdrops) and
+a text colour for what is printed on it (settings: background,
+backgroundText).
 
 ## Working here
 

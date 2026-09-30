@@ -96,6 +96,8 @@ void EmulatorLink::run()
         const juce::ScopedLock sl (sendLock);
         socket = std::move (s);
     }
+    unitFrames = 0;             // the emulator counts from its connection too
+    ++startCount;
     connected = true;
 
     std::vector<uint8_t> buf;
@@ -156,13 +158,14 @@ void EmulatorLink::handleMessage (uint8_t type, const uint8_t* data, int len)
             copy (start1, size1, 0);
             copy (start2, size2, size1);
             audioFifo.finishedWrite (size1 + size2);   // excess is dropped
+            unitFrames += (uint32_t) frames;
             if (onAudioOut)
             {
                 int16_t lr[1024 * 2];
                 const int n = juce::jmin (frames, 1024);
                 for (int i = 0; i < n * 2; ++i)
                     lr[i] = (int16_t) (data[i * 2] | (data[i * 2 + 1] << 8));
-                onAudioOut (lr, n);
+                onAudioOut (lr, n, unitFrames);
             }
             break;
         }
@@ -170,6 +173,11 @@ void EmulatorLink::handleMessage (uint8_t type, const uint8_t* data, int len)
         case 0x03:
             if (len == 4 && onBmcPacket)
                 onBmcPacket (data);
+            break;
+
+        case 0x05:
+            if (len == 8 && onUnitMidi)
+                onUnitMidi ((uint32_t) (data[0] | data[1] << 8 | data[2] << 16 | (uint32_t) data[3] << 24), data + 4);
             break;
 
         case 0x04:
@@ -295,6 +303,23 @@ void EmulatorLink::sendUsbAudio (const int16_t* lr, int frames)
         buf[i * 2 + 1] = (uint8_t) ((lr[i] >> 8) & 0xff);
     }
     send (0x87, buf, frames * 4);
+}
+
+void EmulatorLink::sendUsbMidi (const std::vector<UsbMidiEvent>& events)
+{
+    for (size_t i = 0; i < events.size(); i += 512)
+    {
+        uint8_t buf[512 * 8];
+        const size_t n = juce::jmin ((size_t) 512, events.size() - i);
+        for (size_t k = 0; k < n; ++k)
+        {
+            const auto& e = events[i + k];
+            for (int b = 0; b < 4; ++b)
+                buf[k * 8 + (size_t) b] = (uint8_t) (e.frame >> (8 * b));
+            std::memcpy (buf + k * 8 + 4, e.packet, 4);
+        }
+        send (0x88, buf, (int) (n * 8));
+    }
 }
 
 void EmulatorLink::sendSdCard (const juce::File& image)

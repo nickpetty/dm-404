@@ -7,11 +7,12 @@ LinkProcessor::LinkProcessor()
     : juce::AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true)
                                              .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
-    const auto db = juce::NormalisableRange<float> (-24.0f, 36.0f, 0.1f);
-    addParameter (outputDb = new juce::AudioParameterFloat (juce::ParameterID { "output", 1 }, "Output level", db, 18.0f,
+    const auto db = juce::NormalisableRange<float> (-24.0f, 24.0f, 0.1f);
+    addParameter (outputDb = new juce::AudioParameterFloat (juce::ParameterID { "trim", 1 }, "Output trim", db, 0.0f,
                                                             juce::AudioParameterFloatAttributes().withLabel ("dB")));
     addParameter (inputDb = new juce::AudioParameterFloat (juce::ParameterID { "input", 1 }, "Input level", db, 0.0f,
                                                            juce::AudioParameterFloatAttributes().withLabel ("dB")));
+    addParameter (sendClock = new juce::AudioParameterBool (juce::ParameterID { "clock", 1 }, "Send MIDI clock", true));
     timerCallback();
     startTimerHz (4);
 }
@@ -19,8 +20,9 @@ LinkProcessor::LinkProcessor()
 void LinkProcessor::getStateInformation (juce::MemoryBlock& out)
 {
     juce::XmlElement x ("Doom404Link");
-    x.setAttribute ("output", outputDb->get());
+    x.setAttribute ("trim", outputDb->get());
     x.setAttribute ("input", inputDb->get());
+    x.setAttribute ("clock", sendClock->get());
     copyXmlToBinary (x, out);
 }
 
@@ -28,8 +30,9 @@ void LinkProcessor::setStateInformation (const void* data, int size)
 {
     if (auto x = getXmlFromBinary (data, size))
     {
-        *outputDb = (float) x->getDoubleAttribute ("output", 18.0);
+        *outputDb = (float) x->getDoubleAttribute ("trim", 0.0);
         *inputDb = (float) x->getDoubleAttribute ("input", 0.0);
+        *sendClock = x->getBoolAttribute ("clock", true);
     }
 }
 
@@ -58,7 +61,9 @@ bool LinkProcessor::isBusesLayoutSupported (const BusesLayout& l) const
 void LinkProcessor::prepareToPlay (double sampleRate, int maxBlock)
 {
     rate = sampleRate;
-    setLatencySamples ((int) std::lround (targetFrames * sampleRate / dawlink::rate));
+    // The cushion and MIDI's lead: what the DAW compensates, so a note's
+    // sound lands where the note was written.
+    setLatencySamples ((int) std::lround ((targetFrames + dawlink::midiLead) * sampleRate / dawlink::rate));
     // Room for blocks up to twice the promised size (some hosts overshoot).
     const int block = maxBlock * 2;
     const int maxAt48 = (int) std::ceil (block * dawlink::rate / sampleRate * 1.01) + 16;
@@ -77,6 +82,8 @@ void LinkProcessor::prepareToPlay (double sampleRate, int maxBlock)
     staged = inStaged = 0;
     steer = 0.0;
     primed = false;
+    wasPlaying = false;
+    clockEvents.ensureSize (4096);
 }
 
 void LinkProcessor::releaseResources()
@@ -105,7 +112,7 @@ bool LinkProcessor::claim (Shared& s)
     return true;
 }
 
-void LinkProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void LinkProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
     const int n = buffer.getNumSamples();
@@ -116,6 +123,7 @@ void LinkProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     {
         state = State::noApp;
         buffer.clear();
+        midi.clear();
         primed = false;
         return;
     }
@@ -123,12 +131,14 @@ void LinkProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     {
         state = State::otherInstance;
         buffer.clear();
+        midi.clear();
         return;
     }
     if (isNonRealtime())
     {
         state = State::offline;
         buffer.clear();
+        midi.clear();
         primed = false;
         return;
     }
@@ -140,8 +150,103 @@ void LinkProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     }
 
     toUnit (buffer, n);
-    if (! fromUnit (buffer, n))
+
+    uint32_t base = 0;
+    double ratio = 0.0;
+    const bool running = fromUnit (buffer, n, base, ratio);
+    if (! running)
+    {
+        // Not playing the unit yet: MIDI still goes, about as soon as it can.
+        base = at (s->fromUnit.write).load() - (uint32_t) targetFrames;
+        ratio = dawlink::rate / rate;
+    }
+
+    // MIDI in, stamped with the unit's output frame it should sound at: the
+    // one this plugin plays a latency after the event. It reaches the
+    // firmware just before the unit makes that frame (midiLead ahead of
+    // where the unit is, give or take the cushion's wander).
+    auto stamp = [&] (int sample)
+    {
+        return base + (uint32_t) std::lround (juce::jlimit (0, n, sample) * ratio) + (uint32_t) targetFrames
+             + dawlink::midiLead;
+    };
+    auto send = [&] (const juce::MidiMessage& m, int sample)
+    {
+        usbmidi::encode (m, 0, [&] (const usbmidi::Packet& p)
+        {
+            push (s->midiToUnit, MidiEvent { stamp (sample), { p[0], p[1], p[2], p[3] } });
+        });
+    };
+    for (const auto meta : midi)
+        send (meta.getMessage(), meta.samplePosition);
+    clockEvents.clear();
+    if (sendClock->get())
+        clock (n);
+    for (const auto meta : clockEvents)
+        send (meta.getMessage(), meta.samplePosition);
+    midi.clear();
+
+    if (running)
+    {
+        // The unit's MIDI out, at the samples its audio comes out at.
+        while (auto* e = peek (s->midiFromUnit))
+        {
+            const double at48 = (double) (int32_t) (e->frame - base);
+            if (at48 >= n * ratio)
+                break;
+            juce::MidiMessage m;
+            if (fromDecoder.add (e->packet, m))
+                midi.addEvent (m, juce::jlimit (0, n - 1, (int) (at48 / ratio)));
+            pop (s->midiFromUnit);
+        }
+        // The app's VOLUME, and the trim.
+        const float volume = at (s->volume).load();
+        buffer.applyGain (0, n, (volume > 0.0f ? volume : 8.0f) * juce::Decibels::decibelsToGain (outputDb->get()));
+    }
+    else
+    {
         buffer.clear();
+        drain (s->midiFromUnit);
+    }
+}
+
+void LinkProcessor::clock (int n)
+{
+    auto send = [this] (const juce::MidiMessage& m, int sample) { clockEvents.addEvent (m, sample); };
+    // MIDI clock from the DAW's transport: Song Position and Continue (or
+    // Start at the top) when it plays, 24 ticks a beat at their samples,
+    // Stop when it stops; a jump (a loop) re-cues.
+    auto* head = getPlayHead();
+    const auto pos = head != nullptr ? head->getPosition() : std::nullopt;
+    const bool playing = pos.hasValue() && pos->getIsPlaying() && pos->getPpqPosition().hasValue();
+    if (! playing)
+    {
+        if (wasPlaying)
+            send (juce::MidiMessage::midiStop(), 0);
+        wasPlaying = false;
+        return;
+    }
+    const double ppq = *pos->getPpqPosition();
+    const double bpm = pos->getBpm().orFallback (120.0);
+    const bool jumped = wasPlaying && std::abs (ppq - expectedPpq) > 1.0 / 48.0;
+    if (! wasPlaying || jumped)
+    {
+        if (jumped)
+            send (juce::MidiMessage::midiStop(), 0);
+        const int sixteenths = juce::jmax (0, (int) std::floor (ppq * 4.0 + 1e-6));
+        send (juce::MidiMessage::songPositionPointer (sixteenths), 0);
+        send (ppq <= 1e-6 ? juce::MidiMessage::midiStart() : juce::MidiMessage::midiContinue(), 0);
+    }
+    const double samplesPerTick = rate * 60.0 / bpm / 24.0;
+    for (double k = std::ceil (ppq * 24.0 - 1e-6);; k += 1.0)
+    {
+        const double at = (k / 24.0 - ppq) * 24.0 * samplesPerTick;
+        if (at >= n)
+            break;
+        send (juce::MidiMessage::midiClock(), (int) at);
+    }
+    expectedPpq = ppq + n / samplesPerTick / 24.0;
+    wasPlaying = true;
 }
 
 void LinkProcessor::toUnit (const juce::AudioBuffer<float>& buffer, int n)
@@ -178,7 +283,7 @@ void LinkProcessor::toUnit (const juce::AudioBuffer<float>& buffer, int n)
     write (shared.load()->toUnit, rawIn.data(), (uint32_t) produce);
 }
 
-bool LinkProcessor::fromUnit (juce::AudioBuffer<float>& buffer, int n)
+bool LinkProcessor::fromUnit (juce::AudioBuffer<float>& buffer, int n, uint32_t& base, double& ratio)
 {
     auto& ring = shared.load()->fromUnit;
     const double fill = (double) ready (ring) + staged;
@@ -208,7 +313,7 @@ bool LinkProcessor::fromUnit (juce::AudioBuffer<float>& buffer, int n)
 
     const double want = juce::jlimit (-1.0, 1.0, (fill - targetFrames) / targetFrames) * 0.005;
     steer += (want - steer) * 0.02;
-    const double ratio = dawlink::rate / rate * (1.0 + steer);
+    ratio = dawlink::rate / rate * (1.0 + steer);
 
     const int needed = (int) std::ceil (n * ratio) + 4;
     if (staged < needed)
@@ -229,9 +334,10 @@ bool LinkProcessor::fromUnit (juce::AudioBuffer<float>& buffer, int n)
         primed = false;
         return false;
     }
+    // The ring frame this block's first sample comes from.
+    base = at (ring.read).load() - (uint32_t) staged;
     const int used = outL.process (ratio, stageL.data(), buffer.getWritePointer (0), n, staged, 0);
     outR.process (ratio, stageR.data(), buffer.getWritePointer (1), n, staged, 0);
-    buffer.applyGain (0, n, juce::Decibels::decibelsToGain (outputDb->get()));
     std::memmove (stageL.data(), stageL.data() + used, sizeof (float) * (size_t) (staged - used));
     std::memmove (stageR.data(), stageR.data() + used, sizeof (float) * (size_t) (staged - used));
     staged -= used;

@@ -13,6 +13,9 @@
  *   0x03 BMC      4-byte packets the firmware sent the BMC (LEDs, MIDI).
  *   0x04 SDCARD   the slot after an 0x86: card in (u8), then an error
  *                 message (UTF-8, empty if it worked).
+ *   0x05 MIDIOUT  a BMC packet carrying MIDI out (cable bits set: 8 USB,
+ *                 1 the MIDI OUT jack), stamped: output frame (u32 LE, of
+ *                 the 0x02 stream) it happened at, then the 4 bytes
  *
  * Frontend to emulator:
  *   0x81 KEY      row (u8, 0-7), column (u8, 0-6), pressed (u8)
@@ -24,6 +27,10 @@
  *                 image (UTF-8) to put in. Answered with 0x04.
  *   0x87 USBAUDIO audio from the host computer (the DAW plugin), stereo
  *                 16-bit LE frames at 48 kHz, mixed with the inputs
+ *   0x88 USBMIDI  MIDI from the host: records of frame (u32 LE, of the 0x02
+ *                 stream: it reaches the firmware just before that output
+ *                 frame is made, at once if that has passed) and a USB-MIDI
+ *                 packet (cable 8)
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -73,13 +80,46 @@ static void link_display_tick(void *opaque)
               DISPLAY_PERIOD_NS);
 }
 
+static void link_midi_due(SP404Link *l)
+{
+    while (l->midi_count && l->midi[l->midi_head].frame <= l->out_frames) {
+        if (l->usb_midi_due) {
+            l->usb_midi_due(l->opaque, l->midi[l->midi_head].pkt);
+        }
+        l->midi_head = (l->midi_head + 1) % SP404_USB_MIDI;
+        l->midi_count--;
+    }
+}
+
+static void link_midi_add(SP404Link *l, uint32_t frame, const uint8_t *pkt)
+{
+    /* The full frame number: the one nearest the output so far. */
+    int64_t ahead = (int32_t)(frame - (uint32_t)l->out_frames);
+    unsigned at;
+
+    if (l->midi_count == SP404_USB_MIDI || ahead > 48000) {
+        /* Full, or nonsense: now rather than never. */
+        if (l->usb_midi_due) {
+            l->usb_midi_due(l->opaque, pkt);
+        }
+        return;
+    }
+    at = (l->midi_head + l->midi_count) % SP404_USB_MIDI;
+    l->midi[at].frame = ahead > 0 ? l->out_frames + ahead : l->out_frames;
+    memcpy(l->midi[at].pkt, pkt, 4);
+    l->midi_count++;
+    link_midi_due(l);
+}
+
 void sp404_link_audio(void *opaque, const int16_t *lr, int frames)
 {
     SP404Link *l = opaque;
 
     for (int i = 0; i < frames; i++) {
+        link_midi_due(l);
         stw_le_p(&l->audio[l->audio_len * 4], lr[2 * i]);
         stw_le_p(&l->audio[l->audio_len * 4 + 2], lr[2 * i + 1]);
+        l->out_frames++;
         if (++l->audio_len == AUDIO_BLOCK) {
             sp404_link_send(l, 0x02, l->audio, AUDIO_BLOCK * 4);
             l->audio_len = 0;
@@ -90,6 +130,14 @@ void sp404_link_audio(void *opaque, const int16_t *lr, int frames)
 void sp404_link_bmc_tx(SP404Link *l, const uint8_t *pkt)
 {
     sp404_link_send(l, 0x03, pkt, 4);
+    if (pkt[0] >> 4) {
+        /* MIDI out (a cable other than the BMC's own): stamped. */
+        uint8_t m[8];
+
+        stl_le_p(m, (uint32_t)l->out_frames);
+        memcpy(m + 4, pkt, 4);
+        sp404_link_send(l, 0x05, m, 8);
+    }
 }
 
 static void link_message(SP404Link *l, uint8_t type, const uint8_t *p,
@@ -131,6 +179,11 @@ static void link_message(SP404Link *l, uint8_t type, const uint8_t *p,
                 lr[i] = (int16_t)lduw_le_p(p + i * 2);
             }
             l->usb_audio_in(l->opaque, lr, frames);
+        }
+        break;
+    case 0x88:
+        for (int i = 0; i + 8 <= len; i += 8) {
+            link_midi_add(l, ldl_le_p(p + i), p + i + 4);
         }
         break;
     case 0x86:
@@ -186,6 +239,10 @@ static void link_event(void *opaque, QEMUChrEvent event)
         l->connected = true;
         l->resend = true;
         l->rx_len = 0;
+        /* The frontend counts output frames from here (MIDI out stamps). */
+        l->out_frames = 0;
+        l->audio_len = 0;
+        l->midi_count = 0;
     } else if (event == CHR_EVENT_CLOSED) {
         l->connected = false;
     }

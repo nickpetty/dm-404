@@ -119,8 +119,9 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
     at ("CTRL 3", T::knob, 470, 106, 62, 62);
 
     // Effect keys around the display.
-    at ("FILTER+DRIVE", T::button, 125, 207, 90, 40);
-    at ("RESONATOR", T::button, 110, 260, 90, 40);
+    // Mirror images of the right-hand keys, within the same backdrops.
+    at ("FILTER+DRIVE", T::button, 123, 207, 90, 40);
+    at ("RESONATOR", T::button, 117, 260, 90, 40);
     at ("DELAY", T::button, 123, 315, 90, 40);
     at ("ISOLATOR", T::button, 447, 207, 90, 40);
     at ("DJFX LOOPER", T::button, 453, 260, 90, 40);
@@ -302,14 +303,25 @@ juce::Rectangle<float> PanelComponent::displayDisc() const
 
 void PanelComponent::paint (juce::Graphics& g)
 {
-    g.fillAll (body());
-    // The round display window and the dark band behind the knobs.
-    g.setColour (juce::Colours::black);
-    g.fillRoundedRectangle (toScreen ({ 10, 11, 80, 12 }), 8.0f);
-    g.fillEllipse (displayDisc());
-    g.setColour (juce::Colour (0xff111214));
-    g.fillRoundedRectangle (toScreen ({ 11, 30, 20, 30 }), 10.0f);
-    g.fillRoundedRectangle (toScreen ({ 69, 30, 20, 30 }), 10.0f);
+    if (background.isValid())
+    {
+        // The user's picture, stretched over the whole panel, in place of
+        // the body and the backdrops behind the knobs and effect keys.
+        g.drawImage (background, getLocalBounds().toFloat(), juce::RectanglePlacement::stretchToFit);
+        g.setColour (juce::Colours::black);
+        g.fillEllipse (displayDisc());
+    }
+    else
+    {
+        g.fillAll (body());
+        // The round display window and the dark band behind the knobs.
+        g.setColour (juce::Colours::black);
+        g.fillRoundedRectangle (toScreen ({ 10, 11, 80, 12 }), 8.0f);
+        g.fillEllipse (displayDisc());
+        g.setColour (juce::Colour (0xff111214));
+        g.fillRoundedRectangle (toScreen ({ 11, 30, 20, 30 }), 10.0f);
+        g.fillRoundedRectangle (toScreen ({ 69, 30, 20, 30 }), 10.0f);
+    }
 
     // Section titles printed on the panel (photo pixel coordinates).
     const float ux = getWidth() / 570.0f, uy = getHeight() / 915.0f;
@@ -319,7 +331,7 @@ void PanelComponent::paint (juce::Graphics& g)
                       bool lineAbove = false)
     {
         auto t = juce::Rectangle<float> (x0 * ux, y * uy, (x1 - x0) * ux, 12.0f * uy);
-        g.setColour (ink().withAlpha (0.8f));
+        g.setColour (textColour.withAlpha (0.8f));
         g.setFont (juce::FontOptions (t.getHeight() * 0.85f));
         g.drawText (text, t, juce::Justification::centred);
         const float ly = lineAbove ? t.getY() : t.getBottom();
@@ -358,6 +370,7 @@ void PanelComponent::paint (juce::Graphics& g)
                 // (VALUE has none: PUSH ENTER is printed above it).
                 if (c.name != "VALUE")
                 {
+                    g.setColour (textColour);
                     g.setFont (juce::FontOptions (r.getHeight() * 0.22f));
                     g.drawText (c.name, r.withY (r.getY() - r.getHeight() * 0.3f).withHeight (r.getHeight() * 0.3f),
                                 juce::Justification::centred);
@@ -464,7 +477,7 @@ void PanelComponent::paint (juce::Graphics& g)
             auto s = r.withY (r.getBottom() + r.getHeight() * 0.06f).withHeight (juce::jmax (10.0f, getHeight() / panelH * 3.0f));
             if (c.type == PanelControl::Type::button)
                 s = s.expanded (r.getWidth() * 0.3f, 0.0f);     // may run wider than its key
-            g.setColour (ink());
+            g.setColour (textColour);
             g.setFont (juce::FontOptions (s.getHeight() * 0.8f));
             g.drawFittedText (c.sub, s.toNearestInt(), juce::Justification::centred, 1, 0.6f);
             if (c.type == PanelControl::Type::pad)

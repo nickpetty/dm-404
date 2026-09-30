@@ -22,13 +22,16 @@ public:
             l->setColour (juce::Label::textColourId, juce::Colour (0xffd8d8d0));
             addAndMakeVisible (*l);
         }
-        setSize (440, 250);
+        clockButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xffd8d8d0));
+        clockButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xffff5a1f));
+        addAndMakeVisible (clockButton);
+        setSize (440, 290);
         startTimerHz (4);
     }
 
     void resized() override
     {
-        auto r = getLocalBounds().reduced (16).removeFromBottom (92).withTrimmedBottom (28);
+        auto r = getLocalBounds().reduced (16).removeFromBottom (128).withTrimmedBottom (28);
         auto row = r.removeFromTop (30);
         outputLabel.setBounds (row.removeFromLeft (110));
         output.setBounds (row);
@@ -36,6 +39,8 @@ public:
         row = r.removeFromTop (30);
         inputLabel.setBounds (row.removeFromLeft (110));
         input.setBounds (row);
+        r.removeFromTop (6);
+        clockButton.setBounds (r.removeFromTop (26));
     }
 
     void paint (juce::Graphics& g) override
@@ -72,7 +77,7 @@ public:
                 break;
             case LinkProcessor::State::running:
                 head = "Connected";
-                body = "This track's audio goes into the unit's inputs; the unit's output comes out here.";
+                body = "This track's audio and MIDI go into the unit; its output and MIDI out come out here.";
                 dot = juce::Colour (0xff3ad06b);
                 break;
         }
@@ -96,6 +101,8 @@ private:
     void timerCallback() override { repaint(); }
     LinkProcessor& proc;
     juce::Slider output, input;
-    juce::Label outputLabel { {}, "Unit output" }, inputLabel { {}, "Into the unit" };
+    juce::Label outputLabel { {}, "Output trim" }, inputLabel { {}, "Into the unit" };
     juce::SliderParameterAttachment outputAttach { *proc.outputDb, output }, inputAttach { *proc.inputDb, input };
+    juce::ToggleButton clockButton { "Send tempo and transport (MIDI clock) to the unit" };
+    juce::ButtonParameterAttachment clockAttach { *proc.sendClock, clockButton };
 };

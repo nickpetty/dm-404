@@ -2,9 +2,11 @@
 
 #include "DawLink.h"
 #include "EmulatorLink.h"
+#include "UsbMidi.h"
 
-// The app's end of the DAW link (DawLink.h): the unit's output goes to the
-// plugin, the plugin's audio goes to the unit's USB audio input.
+// The app's end of the DAW link (DawLink.h): the unit's output and USB MIDI
+// out go to the plugin; the plugin's audio and MIDI go to the unit's USB
+// input. The app's VOLUME goes along, for the plugin's output level.
 class DawBridge : private juce::Thread,
                   private juce::Timer
 {
@@ -12,8 +14,11 @@ public:
     explicit DawBridge (EmulatorLink&);
     ~DawBridge() override;
 
-    // The unit's output (48 kHz stereo s16), from the link thread.
-    void unitOutput (const int16_t* lr, int frames);
+    // From the link thread: the unit's output (48 kHz stereo s16), with the
+    // emulator's frame count after it, and its USB MIDI out, stamped with
+    // that count.
+    void unitOutput (const int16_t* lr, int frames, uint32_t framesAfter);
+    void unitMidi (uint32_t frame, const uint8_t* packet);
 
     // A plugin instance holds the link and is running.
     bool pluginConnected() const;
@@ -25,4 +30,5 @@ private:
     EmulatorLink& link;
     dawlink::Map map;
     dawlink::Shared* shared = nullptr;
+    std::atomic<uint32_t> fromDelta { 0 };      // fromUnit ring frame = emulator output frame + this
 };
