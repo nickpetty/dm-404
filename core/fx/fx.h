@@ -203,6 +203,27 @@ class Delay
     size_t             w_ = 0;
 };
 
+// Takes the step out of a signal that jumps (a loop starting, ending or
+// changing length): the jump is held as an offset that decays over a few ms.
+class Declick
+{
+  public:
+    void Init(float sr, float ms = 3.f) { k_ = std::exp(-1.f / (ms * 0.001f * sr)); }
+    void Jump() { jump_ = true; }
+    void Process(float &l, float &r)
+    {
+        if(jump_)
+            ol_ = pl_ - l, or_ = pr_ - r, jump_ = false;
+        l += ol_, r += or_;
+        ol_ *= k_, or_ *= k_;
+        pl_ = l, pr_ = r;
+    }
+
+  private:
+    float k_ = 0.99f, ol_ = 0.f, or_ = 0.f, pl_ = 0.f, pr_ = 0.f;
+    bool  jump_ = false;
+};
+
 class Effect
 {
   public:

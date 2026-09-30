@@ -362,8 +362,11 @@ class Grab
     bool   held = false;
     float  fill = 0.f; // samples still to record before looping
     float  seen = 0.f; // samples heard since Reset
+    bool   seam = false; // crossfade the loop's end into what came before its start
 
     void Reset() { held = false, fill = 0.f, seen = 0.f; }
+    // How much of the audio before the loop's start the seam fades in.
+    float Seam(float length) const { return seam ? std::fmin(192.f, length * 0.25f) : 0.f; }
     void Write(float l, float r)
     {
         if(held && fill <= 0.f)
@@ -376,7 +379,8 @@ class Grab
     void Start(float length)
     {
         held = true, len = length, pos = 0.0;
-        fill = seen >= length ? 0.f : length;
+        const float need = length + Seam(length);
+        fill = seen >= need ? 0.f : need;
     }
     // Still recording: the caller passes the audio through.
     bool Filling() const { return held && fill > 0.f; }
@@ -384,9 +388,22 @@ class Grab
     void Read(float &l, float &r, float speed)
     {
         // pos runs 0..len through the loop, oldest first.
-        const float back = len - float(pos) + 1.f;
-        l                = d[0].Read(back);
-        r                = d[1].Read(back);
+        if(pos >= len) // the length shrank under it
+            pos = std::fmod(pos, double(len));
+        const float p = float(pos);
+        l = d[0].Read(len - p + 1.f);
+        r = d[1].Read(len - p + 1.f);
+        // Towards the end, fade into the audio that led up to the start, so
+        // the end runs on into the start without a jump (either direction:
+        // it depends only on the position).
+        const float x = Seam(len);
+        if(x > 0.f && p > len - x)
+        {
+            const float t = (p - (len - x)) / x;
+            const float a = std::sqrt(1.f - t), b = std::sqrt(t);
+            l = l * a + d[0].Read(2.f * len - p + 1.f) * b;
+            r = r * a + d[1].Read(2.f * len - p + 1.f) * b;
+        }
         pos += speed;
         while(pos >= len)
             pos -= len;
@@ -399,14 +416,19 @@ class Grab
 // at SPEED (-100..+100: backwards to forwards).
 class DjfxLooper : public Effect
 {
-    Grab   g_;
-    Smooth speed_;
+    Grab    g_;
+    Smooth  speed_;
+    Declick dc_;
+    bool    looping_ = false;
+    float   len_     = 0.f;
 
   public:
     void Init(const Context &c) override
     {
         Effect::Init(c);
         speed_.Init(c.sr, 50.f);
+        dc_.Init(c.sr);
+        g_.seam = true;
     }
     void Changed(int) override
     {
@@ -428,26 +450,37 @@ class DjfxLooper : public Effect
     {
         using namespace fxp::fx13;
         g_.Write(l, r);
-        if(!g_.held || g_.Filling())
-            return;
-        float wl, wr;
-        g_.Read(wl, wr, speed_.Next());
-        const float lv = p_[LEVEL] ? Level(LEVEL) : 1.f;
-        l = wl * lv, r = wr * lv;
+        const bool looping = g_.held && !g_.Filling();
+        if(looping != looping_ || (looping && g_.len != len_))
+            dc_.Jump();
+        looping_ = looping, len_ = g_.len;
+        if(looping)
+        {
+            float wl, wr;
+            g_.Read(wl, wr, speed_.Next());
+            const float lv = p_[LEVEL] ? Level(LEVEL) : 1.f;
+            l = wl * lv, r = wr * lv;
+        }
+        dc_.Process(l, r);
     }
 };
 
 // 48 DJFX Delay: a synced delay; LOOP SW repeats the last LENGTH instead.
 class DjfxDelay : public Effect
 {
-    Echo e_;
-    Grab g_;
+    Echo    e_;
+    Grab    g_;
+    Declick dc_;
+    bool    looping_ = false;
+    float   len_     = 0.f;
 
   public:
     void Init(const Context &c) override
     {
         Effect::Init(c);
         e_.Init(c.sr);
+        dc_.Init(c.sr);
+        g_.seam = true;
     }
     void Changed(int i) override
     {
@@ -474,8 +507,13 @@ class DjfxDelay : public Effect
     {
         using namespace fxp::fx48;
         g_.Write(l, r);
-        if(g_.held && !g_.Filling())
+        const bool looping = g_.held && !g_.Filling();
+        if(looping != looping_ || (looping && g_.len != len_))
+            dc_.Jump();
+        looping_ = looping, len_ = g_.len;
+        if(looping)
             g_.Read(l, r, 1.f);
+        dc_.Process(l, r);
         float wl, wr;
         e_.Process(l, r, wl, wr);
         const float lv = p_[LEVEL] ? Level(LEVEL) : 0.7f;
