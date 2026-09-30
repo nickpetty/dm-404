@@ -14,7 +14,7 @@ cmake --build "$root/build/frontend" --config Release --parallel
 if [ -n "$INSTALL_PLUGIN" ]; then
     dest=$(cygpath -u "$LOCALAPPDATA")/Programs/Common/VST3
     mkdir -p "$dest"
-    rm -rf "$dest/DM-404 Link.vst3" "$dest/Doom-404 Link.vst3"   # the plugin's name until 0.1.1
+    rm -rf "$dest/DM-404 Link.vst3"
     cp -r "$root/build/frontend/DM404Link_artefacts/Release/VST3/DM-404 Link.vst3" "$dest/"
     echo "installed $dest/DM-404 Link.vst3"
 fi

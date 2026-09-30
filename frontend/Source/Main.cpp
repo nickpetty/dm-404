@@ -76,17 +76,6 @@ public:
         opts.filenameSuffix = ".settings";
         opts.folderName = "DM-404";
         opts.osxLibrarySubFolder = "Application Support";
-        // Until 0.1.1 the app was Doom-404: its settings come over once.
-        if (! opts.getDefaultFile().existsAsFile())
-        {
-            auto old = opts;
-            old.applicationName = old.folderName = "Doom-404";
-            if (old.getDefaultFile().existsAsFile())
-            {
-                opts.getDefaultFile().getParentDirectory().createDirectory();
-                old.getDefaultFile().copyFileTo (opts.getDefaultFile());
-            }
-        }
         settings = std::make_unique<juce::PropertiesFile> (opts);
         sdSlot = std::make_unique<SdSlot> (link, *settings);
         sdSlot->onChange = [this] { menuItemsChanged(); };
@@ -523,16 +512,8 @@ public:
         if (bg == "plain")
             return;
         juce::Image image;
-        if (bg.isNotEmpty() && juce::File::isAbsolutePath (bg))
-        {
-            // The copy lives in the data folder, which may have moved
-            // (renamed with the app): look for it there by name.
-            juce::File f (bg);
-            if (! f.existsAsFile())
-                f = Storage::dataDir().getChildFile (f.getFileName());
-            if (f.existsAsFile())
-                image = juce::ImageFileFormat::loadFrom (f);
-        }
+        if (bg.isNotEmpty() && juce::File::isAbsolutePath (bg) && juce::File (bg).existsAsFile())
+            image = juce::ImageFileFormat::loadFrom (juce::File (bg));
         panel.setCustomBackground (image.isValid() ? image : defaultBackground());
     }
 

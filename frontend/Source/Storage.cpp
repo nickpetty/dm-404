@@ -12,13 +12,6 @@ namespace Storage
         auto base = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
 #endif
         auto dir = base.getChildFile ("DM-404");
-        // The app was called Doom-404 until 0.1.1: its folder moves over
-        // once (a rename on the same drive, so the sparse images stay sparse).
-        // If it cannot move (the old app still has it open), it is used
-        // where it is, and the move is tried again next time.
-        if (! dir.exists())
-            if (auto old = base.getChildFile ("Doom-404"); old.isDirectory() && ! old.moveFileTo (dir))
-                return old;
         dir.createDirectory();
         return dir;
     }

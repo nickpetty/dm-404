@@ -132,9 +132,7 @@ writable image.
 Nothing of Roland's or the user's ships: on first run the app asks for the
 System Program (Roland's zip or SP404MKII_APP1.bin; sha256 checked, other
 versions allowed with a warning). Frontend/Source/Storage.cpp keeps the unit
-in %LOCALAPPDATA%\DM-404 (Doom-404 up to 0.1.1: Storage::dataDir moves that
-folder over once, or keeps using it while it cannot; the settings file is
-copied from %APPDATA%\Doom-404 the same way): firmware/, system.bin (the NOR flash),
+in %LOCALAPPDATA%\DM-404: firmware/, system.bin (the NOR flash),
 internal.img (B:, 16 GB sparse exFAT, no partition table) and sdcard.img
 (A:, 16 GB sparse FAT32 with an MBR, IMPORT and EXPORT made). A dev
 checkout's firmware/, build/flash.bin and build/emmc.img are copied over
