@@ -76,7 +76,7 @@ static void sp404_audio_frame(void *opaque,
 {
     SP404Audio *a = opaque;
     uint32_t *w = tx[MAIN_LINE];
-    int32_t l, r, loop_l = 0, loop_r = 0;
+    int32_t l, r, loop_l = 0, loop_r = 0, mon_l = 0, mon_r = 0;
     int16_t lr[2], buses[6] = { 0 };
 
     if (tx_words < 16) {
@@ -114,7 +114,7 @@ static void sp404_audio_frame(void *opaque,
     }
     if (a->fx && sp404_fx_active(a->fx)) {
         /* The BMC mixes the buses through its effects. */
-        float stems[8], in[2] = { 0, 0 }, out[2], bus[6];
+        float stems[8], in[2] = { 0, 0 }, out[2], bus[8];
 
         for (int i = 0; i < 8; i++) {
             stems[i] = sext20(w[i]) / 32768.0f;
@@ -130,6 +130,9 @@ static void sp404_audio_frame(void *opaque,
         sp404_fx_process(a->fx, stems, in, out, bus);
         loop_l = lrintf(fmaxf(fminf(out[0], 15.f), -15.f) * 32768.0f);
         loop_r = lrintf(fmaxf(fminf(out[1], 15.f), -15.f) * 32768.0f);
+        /* The mix has the input in it (EXT SOURCE); the loopback must not. */
+        mon_l = lrintf(fmaxf(fminf(bus[6], 15.f), -15.f) * 32768.0f);
+        mon_r = lrintf(fmaxf(fminf(bus[7], 15.f), -15.f) * 32768.0f);
         for (int i = 0; i < 6; i++) {
             buses[i] = clip16(lrintf(fmaxf(fminf(bus[i], 15.f), -15.f) * 32768.0f));
         }
@@ -154,8 +157,8 @@ static void sp404_audio_frame(void *opaque,
          * records 24 dB down and skip back never sees its trigger level
          * (0x40c at 0x80bcf238, which any pad reaches on the unit).
          */
-        rx[0][0] = (uint16_t)sat16(loop_l);
-        rx[0][1] = (uint16_t)sat16(loop_r);
+        rx[0][0] = (uint16_t)sat16(loop_l - mon_l);
+        rx[0][1] = (uint16_t)sat16(loop_r - mon_r);
     }
     /*
      * USB audio plays from a steady backlog of about 20 ms (it arrives in

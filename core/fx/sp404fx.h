@@ -22,13 +22,16 @@
 extern "C" {
 #endif
 
-#define SP404FX_VERSION 2
+#define SP404FX_VERSION 3
 
 /* The number of TX line 3 words the engine takes per frame (the buses). */
 #define SP404FX_STEMS 8
 
-/* The separate outputs: DRY, BUS 1, BUS 2, stereo each (sp404fx_process_buses). */
-#define SP404FX_BUSES 6
+/*
+ * Per frame from sp404fx_process_buses: DRY, BUS 1, BUS 2 (stereo each),
+ * then the input as heard in the mix (EXT SOURCE), stereo.
+ */
+#define SP404FX_BUSES 8
 
 typedef struct SP404FX SP404FX;
 

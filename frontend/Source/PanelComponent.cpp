@@ -344,8 +344,9 @@ void PanelComponent::paint (juce::Graphics& g)
     title ("SAMPLE MODE", 395, 512, 425);
     title ("BANK", 392, 470, 478, 246, 463);                // over all five bank keys
     title ("DJ MODE", 380, 470, 525, -1, -1, true);
-    title ("CH1", 60, 235, 535);
-    title ("CH2", 245, 370, 535);
+    // Over pad columns 1-2 and 3-4 (pads 78 wide, centred at 97, 191, 285, 378).
+    title ("CH1", 58, 230, 535);
+    title ("CH2", 246, 417, 535);
 
     for (auto& c : controls)
     {
@@ -686,12 +687,31 @@ void PanelComponent::mouseUp (const juce::MouseEvent&)
             // A click pushes it: the push switch is a key in the matrix.
             const auto b = active->binding;
             link.sendKey (b.row, b.col, true);
-            juce::Timer::callAfterDelay (120, [this, b] { link.sendKey (b.row, b.col, false); });
+            juce::Timer::callAfterDelay (120, [this, b]
+            {
+                link.sendKey (b.row, b.col, false);
+                releaseShiftLatch();
+            });
         }
         active = nullptr;
         return;
     }
     if (active != nullptr && active->type != PanelControl::Type::knob)
+    {
         press (*active, false);
+        releaseShiftLatch();
+    }
     active = nullptr;
+}
+
+void PanelComponent::releaseShiftLatch()
+{
+    // A clicked SHIFT lasts for one key or pad (let go after it is): it is
+    // too easy to forget it is still held. Turning knobs (SHIFT: FINE)
+    // keeps it.
+    if (! shiftLatched)
+        return;
+    shiftLatched = false;
+    updateShift();
+    repaint();
 }

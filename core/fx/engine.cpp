@@ -128,6 +128,8 @@ class Engine
                 std::memcpy(params_[id][s], fxp::kNeutral[id], 32);
         mute_.Init(ctx_.sr, 5.f);
         mute_.Reset(1.f);
+        inputGain_.Init(ctx_.sr, 10.f);
+        inputGain_.Reset(0.f);
     }
 
     void Dt1(const uint8_t *a, const uint8_t *d, int len)
@@ -188,12 +190,17 @@ class Engine
                 l += xl * m;
                 r += xr * m;
             }
-            // The input: through the input FX, not monitored here (the
-            // frontend's input reaches the firmware on the RX side).
+            // The input: through the input FX, then heard at InputVolume
+            // (EXT SOURCE on: 255, off: 0), ahead of the master effects.
             float il = in[0], ir = in[1];
             slot_[0].Process(il, ir);
-            (void)il;
-            (void)ir;
+            const float ig = inputGain_.Next();
+            il *= ig;
+            ir *= ig;
+            l += il;
+            r += ir;
+            bus[0][0] += il;
+            bus[0][1] += ir;
             // BUS 3 and BUS 4 in series on the whole mix.
             slot_[3].Process(l, r);
             slot_[4].Process(l, r);
@@ -209,6 +216,10 @@ class Engine
                     buses[2 * b]     = bus[b][0] * g;
                     buses[2 * b + 1] = bus[b][1] * g;
                 }
+                // What of the input is in the mix: the resampling loopback
+                // leaves it out (the inputs reach the RX side as they are).
+                buses[6] = il * g;
+                buses[7] = ir * g;
                 buses += SP404FX_BUSES;
             }
         }
@@ -234,6 +245,7 @@ class Engine
                 muted_[b - 1] = sys_[0][kBusMute + 5 * (b - 1)];
         }
         mute_.Set(sys_[0][kAudioMute] ? 0.f : 1.f);
+        inputGain_.Set(sys_[0][kInputVolume] / 255.f);
     }
 
     Context ctx_;
@@ -241,7 +253,7 @@ class Engine
     uint8_t sys_[3][64];
     uint8_t params_[49][5][32];
     bool    muted_[2] = {};
-    Smooth  mute_;
+    Smooth  mute_, inputGain_;
 };
 
 } // namespace sp404fx

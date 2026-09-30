@@ -159,7 +159,7 @@ app's unit into a DAW track: the track's audio goes in as USB audio (link
 mixed into the inputs), the unit's output (pre-VOLUME, link 0x02) comes
 back, scaled by the app's VOLUME (shared) and the plugin's trim. App and
 plugin share daw-link.shm in the data folder (frontend/Source/DawLink.h,
-version 2: SPSC rings of 48 kHz s16 stereo each way, stamped MIDI rings
+version 3: SPSC rings of 48 kHz s16 each way (8 channels from the unit), stamped MIDI rings
 each way, heartbeats, a session counter, one owning instance);
 DawBridge.cpp is the app's end. The plugin holds a 60 ms cushion and
 steers both rate converters by up to 0.5% to hold it; offline renders are
@@ -187,14 +187,40 @@ transport, the unit's MIDI out, the cushion's range).
 `INSTALL_PLUGIN=1 sh tools/build_frontend.sh` copies it to
 %LOCALAPPDATA%\Programs\Common\VST3.
 
-Next for I/O parity: more outputs (the bus stems), and in the end the
-unit's own USB port (i.MX USB controller + USB/IP) for Roland's SP-404 app
-and drivers.
+Separate outputs: the effects engine (sp404fx version 3; QEMU's
+sp404-fx.c has its own copy of the number, keep them equal or the engine
+is refused and the mix goes dry) also gives DRY, BUS 1 and BUS 2 as they
+reach the master effects (BUS 3/4), and the input as heard. QEMU sends the
+buses (0x06) after each 0x02 block while the app asks (0x89, only while a
+plugin plays); DawLink version 3 carries 8 channels from the unit; the
+plugin has DRY / BUS 1 / BUS 2 as extra stereo outputs.
+
+EXT SOURCE: the firmware sends the BMC InputVolume (02 00 00 02) 0xff on,
+0 off; the engine mixes the input (after the input FX) at that level ahead
+of the master effects; the resampling loopback leaves it out (the inputs
+are added to RX as they are). INPUT SETTING's ROUTING (Mix / ExtIn,
+02 01 00 1e) is the resample source, not this.
+
+## USB port
+
+imxrt-usb.c models USB OTG1 (0x402e0000, IRQ 113) in device mode (dQH /
+dTD in guest memory, priming, completion, SETUP, stalls, bus reset, attach
+through OTGSC B-session valid, which the firmware's NXP stack watches);
+sp404-usbip.c serves it as USB/IP on a chardev (`-M ...,usbip=ID`; the
+first client plugs the cable in, descriptors come from the firmware;
+import resets and addresses it). `python tools/usbip_probe.py` lists,
+imports and reads it: Roland 0582:02e7 "Roland SP-404MKII", one CDC serial
+interface (interrupt 81, bulk 82/03). That is all the i.MX presents: the
+unit's USB audio and MIDI belong to the BMC (the firmware sends it the USB
+audio settings, USBAudio_*, Gain_UsbInput, Midi_UsbThru; USB-MIDI reaches
+the firmware from the BMC as cable 8), whose firmware is encrypted, so a
+USB audio/MIDI device for Roland's driver would have to be written here,
+from the real unit's descriptors. Isochronous URBs are refused.
 
 The panel can take a background picture (View menu; copied to the data
 folder as background.*; stretched, in place of the body and backdrops) and
-a text colour for what is printed on it (settings: background,
-backgroundText).
+a text colour for what is printed on it, set on its own (settings: background,
+textColour).
 
 ## Working here
 

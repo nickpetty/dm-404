@@ -80,7 +80,8 @@ public:
     void setLedState (int page, int index, int value);
 
     // SHIFT: a click latches it (the firmware sees it held until the next
-    // click); the computer's Shift key holds it for as long as it is down.
+    // click, or until the next key or pad has been pressed and let go); the
+    // computer's Shift key holds it for as long as it is down.
     // Other keys latch on ctrl-click, and the mouse wheel turns the knob
     // under the pointer, also while another control is held.
     void setShiftFromKeyboard (bool down);
@@ -121,6 +122,7 @@ private:
     int encoderSent = 0;
     bool shiftLatched = false, shiftKeyboard = false;
     void updateShift();
+    void releaseShiftLatch();
     bool encoderMoved = false;
     float wheelAccum = 0.0f;
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":

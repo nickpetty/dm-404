@@ -19,7 +19,7 @@
 #include <dlfcn.h>
 #endif
 
-#define SP404FX_VERSION 1
+#define SP404FX_VERSION 3      /* as core/fx/sp404fx.h */
 
 static void *fx_open(const char *path)
 {
