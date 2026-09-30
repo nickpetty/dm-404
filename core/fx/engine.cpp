@@ -25,6 +25,10 @@ enum
     kBusOnOff     = 11,
     kAudioMute    = 31,
 };
+// In 02 02 (address / 2): Effect_InputAssign, the bus the input joins
+// (0 DRY, 1 BUS 1, 2 BUS 2, 3/4 BUS 3/4, i.e. the master effects; the
+// firmware sets 1).
+constexpr int kInputAssign = 3;
 
 // What TX line 3 words 0-7 carry, as stereo pairs. Pads routed to BUS 1
 // play on words 2/3 (seen); the others follow the same pattern.
@@ -178,6 +182,16 @@ class Engine
                 bl[kStemRoute[k]] += st[2 * k];
                 br[kStemRoute[k]] += st[2 * k + 1];
             }
+            // The input: through the input FX, heard at InputVolume
+            // (EXT SOURCE on: 255, off: 0), on the bus it is assigned to.
+            float il = in[0], ir = in[1];
+            slot_[0].Process(il, ir);
+            const float ig = inputGain_.Next();
+            il *= ig;
+            ir *= ig;
+            const int ib = sys_[2][kInputAssign] == 1 || sys_[2][kInputAssign] == 2 ? sys_[2][kInputAssign] : kDry;
+            bl[ib] += il;
+            br[ib] += ir;
             float l = bl[kDry], r = br[kDry];
             float bus[3][2] = {{l, r}};
             for(int b = 1; b <= 2; b++)
@@ -190,17 +204,6 @@ class Engine
                 l += xl * m;
                 r += xr * m;
             }
-            // The input: through the input FX, then heard at InputVolume
-            // (EXT SOURCE on: 255, off: 0), ahead of the master effects.
-            float il = in[0], ir = in[1];
-            slot_[0].Process(il, ir);
-            const float ig = inputGain_.Next();
-            il *= ig;
-            ir *= ig;
-            l += il;
-            r += ir;
-            bus[0][0] += il;
-            bus[0][1] += ir;
             // BUS 3 and BUS 4 in series on the whole mix.
             slot_[3].Process(l, r);
             slot_[4].Process(l, r);
@@ -216,8 +219,9 @@ class Engine
                     buses[2 * b]     = bus[b][0] * g;
                     buses[2 * b + 1] = bus[b][1] * g;
                 }
-                // What of the input is in the mix: the resampling loopback
-                // leaves it out (the inputs reach the RX side as they are).
+                // The input as it joined its bus: the resampling loopback
+                // takes it out, since the inputs reach the RX side as they
+                // are (so what a bus effect made of it stays in).
                 buses[6] = il * g;
                 buses[7] = ir * g;
                 buses += SP404FX_BUSES;

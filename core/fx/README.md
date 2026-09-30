@@ -22,6 +22,7 @@ nibble, most significant first (two for a byte, four for the tempo).
 | `02 00 00 aa` | system parameters from ID 33 on, aa = 2 x (ID - 33): Volume, InputVolume, ..., InputFxOnOff (0x12), Bus1Mute (0x14), Bus1OnOff (0x16), Bus2..4 at +0x0a each, AudioMute (0x3e) |
 | `02 01 00 aa` | IDs 82 on: MIDI, gains, Resample_Routing ... |
 | `02 02 00 00` | Tempo_Master, BPM x 10 |
+| `02 02 00 04`, `06` | Effect_BusRouting, Effect_InputAssign (the bus the input joins) |
 | `02 02 00 08..10` | Effect_FxType0-4: the effect in slot 0 (input FX) and slots 1-4 (BUS 1-4), by effect ID |
 | `03 hi lo aa` | effect parameters: hi:lo = (effect - 1) x 5 + slot as 7-bit halves, aa = 2 x parameter index |
 
@@ -71,8 +72,11 @@ defaults, which cannot be seen; EQ-style gains start at 0 dB here.
 TX line 3 words 0-7 are four stereo stems: pads on BUS 1 play on words 2/3
 (seen); 4/5 is taken as BUS 2 and 0/1, 6/7 as DRY. BUS 1 and BUS 2 go
 through slots 1 and 2, then the whole mix through slots 3 and 4 (BUS 3 and
-BUS 4 in series). The input FX (slot 0) processes the input but it is not
-monitored. The engine's output is both the main output and the resampling
+BUS 4 in series). The input goes through the input FX (slot 0), then, at
+InputVolume (EXT SOURCE on: 255, off: 0), joins the bus Effect_InputAssign
+(`02 02 00 06`) names: 0 DRY, 1 BUS 1 (what the firmware sets), 2 BUS 2,
+3/4 the master effects. The loopback takes out the input as it joined its
+bus, so what a bus effect made of it stays in resampling. The engine's output is both the main output and the resampling
 loopback; the metronome words (12, 14, 15) bypass it.
 
 ## Checking
