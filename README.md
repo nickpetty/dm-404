@@ -137,9 +137,20 @@ git.
 
 4. **Run it.** Start `Doom-404.exe`. On first run it asks for the System
    Program, then makes blank drives. In a development checkout it finds the
-   emulator in `build/qemu/`; a packaged app would carry it in a `qemu/`
-   folder next to itself, with QEMU's MSYS2 runtime DLLs. There is no
-   packaging script yet.
+   emulator in `build/qemu/`.
+
+5. **A release package.** This lays out `build/dist/Doom-404-VERSION-win64/`
+   and zips it:
+   - the app, with the emulator in `qemu/` beside it (stripped of debug
+     info), its effects engine, and the MSYS2 runtime DLLs they need (found
+     from their imports);
+   - the VST3;
+   - this project's and every bundled component's licence texts,
+     `THIRD-PARTY.txt`, and a `SOURCE.txt` pointing at the exact commit.
+
+   ```bash
+   python tools/package.py
+   ```
 
 `CLAUDE.md` is the developer's notebook: how the hardware was worked out, the
 link protocols, and the debugging tools (`tools/run.sh`, `tools/mon.py`,
