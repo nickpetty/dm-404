@@ -22,14 +22,16 @@
 extern "C" {
 #endif
 
-#define SP404FX_VERSION 3
+#define SP404FX_VERSION 4
 
 /* The number of TX line 3 words the engine takes per frame (the buses). */
 #define SP404FX_STEMS 8
 
 /*
  * Per frame from sp404fx_process_buses: DRY, BUS 1, BUS 2 (stereo each),
- * then the input as heard in the mix (EXT SOURCE), stereo.
+ * then what the BMC hands back to be sampled (SAI RX line 0 words 0/1),
+ * stereo: INPUT SETTING's ROUTING Mix, the mix as heard (with the input as
+ * its bus made it); ExtIn, the input alone, after the input FX.
  */
 #define SP404FX_BUSES 8
 

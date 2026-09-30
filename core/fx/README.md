@@ -74,10 +74,13 @@ TX line 3 words 0-7 are four stereo stems: pads on BUS 1 play on words 2/3
 through slots 1 and 2, then the whole mix through slots 3 and 4 (BUS 3 and
 BUS 4 in series). The input goes through the input FX (slot 0), then, at
 InputVolume (EXT SOURCE on: 255, off: 0), joins the bus Effect_InputAssign
-(`02 02 00 06`) names: 0 DRY, 1 BUS 1 (what the firmware sets), 2 BUS 2,
-3/4 the master effects. The loopback takes out the input as it joined its
-bus, so what a bus effect made of it stays in resampling. The engine's output is both the main output and the resampling
-loopback; the metronome words (12, 14, 15) bypass it.
+(`02 02 00 06`, EFX SET > OTHER > Input Bus) names: 0 DRY, 1 BUS1 (the
+default), 2 BUS2. The metronome words (12, 14, 15) bypass the engine.
+
+What is sampled (SAI RX words 0/1, `sp404fx_process_buses` channels 6/7)
+follows INPUT SETTING's ROUTING (`02 01 00 1e`): Mix (0), the main output,
+the input in it as its bus made it; ExtIn (1), the input alone, after the
+input FX and at InputVolume.
 
 ## Checking
 

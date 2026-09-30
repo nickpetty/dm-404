@@ -29,6 +29,9 @@ enum
 // (0 DRY, 1 BUS 1, 2 BUS 2, 3/4 BUS 3/4, i.e. the master effects; the
 // firmware sets 1).
 constexpr int kInputAssign = 3;
+// In 02 01 (address / 2): INPUT SETTING's ROUTING, what is sampled
+// (0 Mix: the mix and the input; 1 ExtIn: the input only).
+constexpr int kRecRouting = 15;
 
 // What TX line 3 words 0-7 carry, as stereo pairs. Pads routed to BUS 1
 // play on words 2/3 (seen); the others follow the same pattern.
@@ -219,11 +222,10 @@ class Engine
                     buses[2 * b]     = bus[b][0] * g;
                     buses[2 * b + 1] = bus[b][1] * g;
                 }
-                // The input as it joined its bus: the resampling loopback
-                // takes it out, since the inputs reach the RX side as they
-                // are (so what a bus effect made of it stays in).
-                buses[6] = il * g;
-                buses[7] = ir * g;
+                // What is sampled (resampling, skip back, the REC meter).
+                const bool ext = sys_[1][kRecRouting] == 1;
+                buses[6] = ext ? il : out[0];
+                buses[7] = ext ? ir : out[1];
                 buses += SP404FX_BUSES;
             }
         }

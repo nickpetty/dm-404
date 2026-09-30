@@ -97,11 +97,14 @@ parameter map (from the firmware's own tables), value scales and routing.
 Tools: `tools/fxmap.py` (drive the panel, print the DT1 writes),
 `tools/fxtable.py`, `tools/fxbench.py` (offline), `tools/fxcheck.py`.
 
-Inputs: the frontend streams the audio device's input over the link; it is
-mixed into SAI RX line 0 words 0/1, where sampling and the REC meter read.
-The same words carry the resampling loopback (TX line 3 words 0-7, at
-unity: 16-bit samples in 20-bit slots). Skip back sampling (MARK) records
-them too: the audio task (FUN_0001ca80) feeds the recorder at 0x82fe4f08
+Inputs: the frontend streams the audio device's input over the link into
+the effects engine. SAI RX line 0 words 0/1 are what the BMC hands back to
+be sampled (sampling, resampling, the REC meter, skip back), at unity
+(16-bit samples in 20-bit slots): with INPUT SETTING's ROUTING (SHIFT +
+EXT SOURCE, CTRL 2; 02 01 00 1e) Mix, the mix as heard, input included as
+its bus made it; ExtIn, the input alone after the input FX (not the bus
+FX). Without the engine: the loopback plus the raw inputs. Skip back
+sampling (MARK) records them too: the audio task (FUN_0001ca80) feeds the recorder at 0x82fe4f08
 (pointer at 0x82e0e970), whose ring only starts keeping audio once a
 sample reaches the threshold at 0x80bcf238 (0x40c); until then MARK says
 "No SKIP BACK Triggered Data".
@@ -210,12 +213,11 @@ plugin plays); DawLink version 3 carries 8 channels from the unit; the
 plugin has DRY / BUS 1 / BUS 2 as extra stereo outputs.
 
 EXT SOURCE: the firmware sends the BMC InputVolume (02 00 00 02) 0xff on,
-0 off; the engine mixes the input (after the input FX) at that level into
-the bus Effect_InputAssign (02 02 00 06) names: 0 DRY, 1 BUS 1 (set at
-boot, and on the unit the input is heard through BUS 1's effect), 2 BUS 2;
-the resampling loopback takes out the input as it joined (the inputs are
-added to RX as they are), so a bus effect's work on it stays in. INPUT SETTING's ROUTING (Mix / ExtIn,
-02 01 00 1e) is the resample source, not this.
+0 off (and 0xff whenever sampling is armed or INPUT SETTING is open); the
+engine mixes the input (after the input FX) at that level into the bus
+EFX SET > OTHER > Input Bus names (Effect_InputAssign, 02 02 00 06: 0 DRY,
+1 BUS1, the default, 2 BUS2). INPUT SETTING's ROUTING picks what is sampled
+(above), not what is heard.
 
 ## USB port
 

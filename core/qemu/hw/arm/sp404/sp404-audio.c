@@ -76,7 +76,8 @@ static void sp404_audio_frame(void *opaque,
 {
     SP404Audio *a = opaque;
     uint32_t *w = tx[MAIN_LINE];
-    int32_t l, r, loop_l = 0, loop_r = 0, mon_l = 0, mon_r = 0;
+    int32_t l, r, loop_l = 0, loop_r = 0;
+    bool rec = false;
     int16_t lr[2], buses[6] = { 0 };
 
     if (tx_words < 16) {
@@ -141,9 +142,16 @@ static void sp404_audio_frame(void *opaque,
         sp404_fx_process(a->fx, stems, in, out, bus);
         loop_l = lrintf(fmaxf(fminf(out[0], 15.f), -15.f) * 32768.0f);
         loop_r = lrintf(fmaxf(fminf(out[1], 15.f), -15.f) * 32768.0f);
-        /* The mix has the input in it (EXT SOURCE); the loopback must not. */
-        mon_l = lrintf(fmaxf(fminf(bus[6], 15.f), -15.f) * 32768.0f);
-        mon_r = lrintf(fmaxf(fminf(bus[7], 15.f), -15.f) * 32768.0f);
+        /*
+         * What the BMC hands back to be sampled, as INPUT SETTING's ROUTING
+         * says: the mix (Mix) or the input after the input FX (ExtIn). The
+         * inputs are in it already.
+         */
+        if (rx_words >= 2) {
+            rx[0][0] = (uint16_t)sat16(lrintf(fmaxf(fminf(bus[6], 15.f), -15.f) * 32768.0f));
+            rx[0][1] = (uint16_t)sat16(lrintf(fmaxf(fminf(bus[7], 15.f), -15.f) * 32768.0f));
+            rec = true;
+        }
         for (int i = 0; i < 6; i++) {
             buses[i] = clip16(lrintf(fmaxf(fminf(bus[i], 15.f), -15.f) * 32768.0f));
         }
@@ -161,15 +169,16 @@ static void sp404_audio_frame(void *opaque,
     }
     l = loop_l + sext20(w[12]) + sext20(w[14]);
     r = loop_r + sext20(w[12]) + sext20(w[15]);
-    if (rx_words >= 2) {
+    if (!rec && rx_words >= 2) {
         /*
+         * No effects engine: the loopback, with the inputs added below.
          * At unity: the firmware writes 16-bit samples into the 20-bit
          * slots, and what comes back must match them, or resampling
          * records 24 dB down and skip back never sees its trigger level
          * (0x40c at 0x80bcf238, which any pad reaches on the unit).
          */
-        rx[0][0] = (uint16_t)sat16(loop_l - mon_l);
-        rx[0][1] = (uint16_t)sat16(loop_r - mon_r);
+        rx[0][0] = (uint16_t)sat16(loop_l);
+        rx[0][1] = (uint16_t)sat16(loop_r);
     }
     /*
      * USB audio plays from a steady backlog of about 20 ms (it arrives in
@@ -182,23 +191,29 @@ static void sp404_audio_frame(void *opaque,
     } else if (!a->usb_primed && a->usb_count >= SP404_USB_TARGET) {
         a->usb_primed = true;
     }
-    if (a->usb_primed && a->in_slot + 1 < (int)rx_words) {
-        /* USB audio (the DAW plugin) joins the inputs. */
-        int32_t sl = (int16_t)rx[0][a->in_slot] + a->usb_ring[a->usb_head * 2];
-        int32_t sr = (int16_t)rx[0][a->in_slot + 1] + a->usb_ring[a->usb_head * 2 + 1];
+    /* Without the engine, the inputs are added to what is sampled here. */
+    bool add = !rec && a->in_slot + 1 < (int)rx_words;
 
-        rx[0][a->in_slot] = (uint16_t)sat16(sl);
-        rx[0][a->in_slot + 1] = (uint16_t)sat16(sr);
+    if (a->usb_primed && a->usb_count) {
+        /* USB audio (the DAW plugin) joins the inputs. */
+        if (add) {
+            int32_t sl = (int16_t)rx[0][a->in_slot] + a->usb_ring[a->usb_head * 2];
+            int32_t sr = (int16_t)rx[0][a->in_slot + 1] + a->usb_ring[a->usb_head * 2 + 1];
+
+            rx[0][a->in_slot] = (uint16_t)sat16(sl);
+            rx[0][a->in_slot + 1] = (uint16_t)sat16(sr);
+        }
         a->usb_head = (a->usb_head + 1) % SP404_USB_RING;
         a->usb_count--;
     }
-    if (a->in_primed && a->in_slot + 1 < (int)rx_words) {
-        int16_t il = a->in_ring[a->in_head * 2], ir = a->in_ring[a->in_head * 2 + 1];
-        int32_t sl = (int16_t)rx[0][a->in_slot] + il;
-        int32_t sr = (int16_t)rx[0][a->in_slot + 1] + ir;
+    if (a->in_primed) {
+        if (add) {
+            int32_t sl = (int16_t)rx[0][a->in_slot] + a->in_ring[a->in_head * 2];
+            int32_t sr = (int16_t)rx[0][a->in_slot + 1] + a->in_ring[a->in_head * 2 + 1];
 
-        rx[0][a->in_slot] = (uint16_t)(sl > INT16_MAX ? INT16_MAX : sl < INT16_MIN ? INT16_MIN : sl);
-        rx[0][a->in_slot + 1] = (uint16_t)(sr > INT16_MAX ? INT16_MAX : sr < INT16_MIN ? INT16_MIN : sr);
+            rx[0][a->in_slot] = (uint16_t)sat16(sl);
+            rx[0][a->in_slot + 1] = (uint16_t)sat16(sr);
+        }
         a->in_head = (a->in_head + 1) % 16384;
         a->in_count--;
     }

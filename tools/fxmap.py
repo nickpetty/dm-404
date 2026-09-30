@@ -19,10 +19,12 @@ DT1 SysEx writes it caused, decoded as "addr(4) <- data". ACTIONs:
 FXMAP_LEDS=1 also prints LED writes on pages other than 0/1 (blink, pulse);
 FXMAP_LEDS=all prints every LED write.
 FXMAP_LOG=FILE keeps the emulator's log (with SP404_TRACE=audio: per-slot
-levels once a second). -o FILE also writes the boot-time dump (all writes before the first action).
+levels once a second, and the peaks of what is sampled, RX words 0/1).
+FXMAP_INPUT=HZ[,LEVEL] feeds the unit's input a sine (LEVEL of 32767, default
+8000) from the start, as the app streams its audio input. -o FILE also writes the boot-time dump (all writes before the first action).
 Every write is "F0 41 10 00 00 00 00 08 12 a a a a d.. sum F7".
 """
-import json, os, socket, struct, subprocess, sys, time
+import json, math, os, socket, struct, subprocess, sys, threading, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import link as L
@@ -52,6 +54,22 @@ def decode(m):
     return '%s <- %s' % (body[:4].hex(' '), body[4:].hex(' '))
 
 
+def feed(lk, hz, level):
+    """10 ms of a sine into the unit's input every 10 ms, in real time."""
+    t0, k, ph = time.perf_counter(), 0, 0.0
+    while True:
+        pcm = bytearray()
+        for _ in range(480):
+            v = int(level * math.sin(ph))
+            pcm += struct.pack('<hh', v, v)
+            ph += 2 * math.pi * hz / 48000
+        lk.send(0x85, bytes(pcm[:1024]))
+        lk.send(0x85, bytes(pcm[1024:]))
+        k += 1
+        while time.perf_counter() < t0 + k * 0.01:
+            time.sleep(0.001)
+
+
 def main():
     args = sys.argv[1:]
     dump = None
@@ -77,6 +95,9 @@ def main():
                 break
             except OSError:
                 time.sleep(0.2)
+        if os.environ.get('FXMAP_INPUT'):
+            hz, _, lv = os.environ['FXMAP_INPUT'].partition(',')
+            threading.Thread(target=feed, args=(lk, float(hz), int(lv or 8000)), daemon=True).start()
         time.sleep(24)
 
         def take():
