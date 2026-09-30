@@ -188,7 +188,9 @@ public:
         settings->saveIfNeeded();
         auto* top = getTopLevelComponent();
         auto* window = dynamic_cast<juce::ResizableWindow*> (top);
-        if (window != nullptr && ! window->isFullScreen() && ! window->isMinimised())
+        // At startup (restoring the setting) there is no window yet: sizing
+        // the content is enough, the window is made to fit it.
+        if (window == nullptr || (! window->isFullScreen() && ! window->isMinimised()))
         {
             const int panelW = getHeight() * 100 / 160;
             if (! shown)

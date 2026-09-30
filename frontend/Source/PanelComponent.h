@@ -72,8 +72,9 @@ public:
     // writes the same LED and the latest write wins; the page is how it
     // shows: 0 lit (a key, a playing pad), 1 the resting level (0x1f: the
     // backlight; pads: a dim colour), 6 blinking between that value and the
-    // resting one (the current pad and option keys in START/END, BUS FX
-    // while choosing, the pads in pattern select), 9 pulsing slowly (MARK
+    // resting one, or off if that is as bright (the current pad and option
+    // keys in START/END, BUS FX while choosing, the pads in pattern select,
+    // a bank key on its second bank), 9 pulsing slowly (MARK
     // once skip back has something), 7 pulsing faster. Pages 4 and 5 come
     // once at boot and are not LEDs (ignored); others are taken as lit.
     void setLedState (int page, int index, int value);

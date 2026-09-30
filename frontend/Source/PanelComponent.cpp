@@ -254,7 +254,12 @@ void PanelComponent::setLedState (int page, int index, int value)
 uint8_t PanelComponent::shown (int idx) const
 {
     const auto i = (size_t) idx;
-    const float from = leds[i], to = animValue[i];
+    float from = leds[i];
+    const float to = animValue[i];
+    // A blink goes dark between flashes when its resting level is no dimmer
+    // (a bank key already lit, blinking for its second bank).
+    if (ledMode[i] == LedMode::blink && from >= to)
+        from = 0.0f;
     float w = 0.0f;
     switch (ledMode[i])
     {
@@ -308,21 +313,25 @@ void PanelComponent::paint (juce::Graphics& g)
 
     // Section titles printed on the panel (photo pixel coordinates).
     const float ux = getWidth() / 570.0f, uy = getHeight() / 915.0f;
-    auto title = [&] (const char* text, float x0, float x1, float y)
+    // The text is centred over x0-x1; the rule runs under it (or above,
+    // lineAbove) from lineX0 to lineX1, by default the same span.
+    auto title = [&] (const char* text, float x0, float x1, float y, float lineX0 = -1, float lineX1 = -1,
+                      bool lineAbove = false)
     {
         auto t = juce::Rectangle<float> (x0 * ux, y * uy, (x1 - x0) * ux, 12.0f * uy);
         g.setColour (ink().withAlpha (0.8f));
         g.setFont (juce::FontOptions (t.getHeight() * 0.85f));
         g.drawText (text, t, juce::Justification::centred);
-        g.drawLine (t.getX(), t.getBottom(), t.getRight(), t.getBottom(), 1.0f);
+        const float ly = lineAbove ? t.getY() : t.getBottom();
+        g.drawLine (lineX0 < 0 ? t.getX() : lineX0 * ux, ly, lineX1 < 0 ? t.getRight() : lineX1 * ux, ly, 1.0f);
     };
     title ("PATTERN SEQUENCER", 60, 230, 368);
     title ("SAMPLE EDIT", 260, 430, 368);
     title ("PUSH ENTER", 450, 516, 356);
     title ("SAMPLING", 120, 230, 425);
     title ("SAMPLE MODE", 395, 512, 425);
-    title ("BANK", 392, 470, 478);
-    title ("DJ MODE", 380, 470, 521);
+    title ("BANK", 392, 470, 478, 246, 463);                // over all five bank keys
+    title ("DJ MODE", 380, 470, 525, -1, -1, true);
     title ("CH1", 60, 235, 535);
     title ("CH2", 245, 370, 535);
 
