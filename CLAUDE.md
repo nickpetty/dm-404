@@ -81,7 +81,9 @@ blinks the LED between the given value and its page-0/1 one (START/END's
 option keys and current pad, BUS FX while choosing, pattern-select pads);
 a later page-0/1 write stops it. Page 9 pulses slowly (MARK, once skip
 back has triggered data), page 7 pulses too; pages 4 and 5 come once at
-boot (idx 0 = cc) and are not LEDs. Mode changes also send a Roland DT1 SysEx
+boot (idx 0 = cc) and are not LEDs. During boot EXT SOURCE's LED (0x33) gets
+on-off pairs (01 00 33 61..7f, then 00) every ~60 ms; the panel shows a
+steady write only once it has held 12 ms (40 ms at most), so they never flash. Mode changes also send a Roland DT1 SysEx
 (F0 41 10 00 00 00 00 08 12 02 02 00 00 ...), apparently the tempo (00 03 07 00 = 88.0).
 
 Effects are not computed by the i.MX: the TX lines carry dry buses

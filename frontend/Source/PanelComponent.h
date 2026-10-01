@@ -156,6 +156,15 @@ private:
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":
     // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.
     std::array<uint8_t, 128> leds {};
+    // Steady LED writes not yet shown: the value, when the first and the
+    // latest came (ms).
+    std::array<uint8_t, 128> ledNext {};
+    std::array<bool, 128> ledPending {};
+    std::array<uint32_t, 128> ledFirst {}, ledLast {};
+    void commitLeds();
+    // The sample mode keys, BPM SYNC to ROLL (photo pixels): left edge,
+    // width, gap.
+    static constexpr float modeLeft = 242.0f, modeW = 46.0f, modeGap = (267.0f - 5 * 46.0f) / 4.0f;
     // Animated LEDs: how (page 6 blink, 9 slow pulse, 7 fast pulse) and the
     // value they swing to from their resting one.
     enum class LedMode : uint8_t { steady, blink, pulseSlow, pulseFast };

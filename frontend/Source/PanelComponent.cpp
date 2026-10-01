@@ -97,7 +97,7 @@ void OledView::paint (juce::Graphics& g)
 //==============================================================================
 PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
 {
-    startTimer (33);        // LED animation: blinks and pulses, ~30 fps
+    startTimer (10);        // LED changes (held back briefly) and animation
     using T = PanelControl::Type;
     auto add = [this] (juce::String name, T type, float x, float y, float w, float h)
     {
@@ -135,10 +135,15 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
     at ("VALUE", T::knob, 483, 393, 48, 48);
 
     // Sampling and sample mode.
-    const char* row2[] = { "DEL", "REC", "RESAMPLE", "BPM SYNC", "GATE", "LOOP", "REVERSE", "ROLL" };
-    const float row2x[] = { 85, 145, 205, 264, 309, 361, 423, 483 };
-    for (int i = 0; i < 8; ++i)
-        at (row2[i], T::button, row2x[i], 454, row2x[i] > 300 && i > 4 ? 52.0f : 44.0f, 30);
+    const char* row2[] = { "DEL", "REC", "RESAMPLE" };
+    const float row2x[] = { 85, 145, 205 };
+    for (int i = 0; i < 3; ++i)
+        at (row2[i], T::button, row2x[i], 454, 44, 30);
+    // BPM SYNC to ROLL: one width, evenly spaced from A/F's left edge to
+    // SHIFT's right one (242-509); SAMPLE MODE spans the last two.
+    const char* mode[] = { "BPM SYNC", "GATE", "LOOP", "REVERSE", "ROLL" };
+    for (int i = 0; i < 5; ++i)
+        at (mode[i], T::button, modeLeft + modeW / 2 + (float) i * (modeW + modeGap), 454, modeW, 30);
 
     // EXIT, COPY, REMAIN, the banks and SHIFT.
     const char* row3[] = { "EXIT", "COPY", "REMAIN", "A/F", "B/G", "C/H", "D/I", "E/J", "SHIFT" };
@@ -148,7 +153,7 @@ PanelComponent::PanelComponent (EmulatorLink& l) : link (l)
 
     // The 16 pads: 1-4 along the top, 13-16 along the bottom, and the
     // right-hand column beside them, row for row.
-    const float padX[] = { 97, 191, 285, 378 }, padY[] = { 585, 665, 747, 827 };
+    const float padX[] = { 97, 191, 285, 378 }, padY[] = { 585, 666, 747, 828 };
     const char* column[] = { "BUS FX", "HOLD", "EXT SOURCE", "SUB PAD" };
     for (int r = 0; r < 4; ++r)
         at (column[r], T::button, 472, padY[r] - 4, 72, 62);
@@ -246,10 +251,34 @@ void PanelComponent::setLedState (int page, int index, int value)
     }
     else
     {
+        // Held back until it has lasted a moment: during boot the firmware
+        // sends EXT SOURCE's LED on-off pairs a few microseconds long, which
+        // the unit never shows but a frame could catch.
+        const auto now = juce::Time::getMillisecondCounter();
+        if (! ledPending[i])
+            ledFirst[i] = now;
+        ledPending[i] = true;
+        ledNext[i] = (uint8_t) value;
+        ledLast[i] = now;
         ledMode[i] = LedMode::steady;
-        leds[i] = (uint8_t) value;
+        return;
     }
     repaint();
+}
+
+void PanelComponent::commitLeds()
+{
+    const auto now = juce::Time::getMillisecondCounter();
+    bool changed = false;
+    for (size_t i = 0; i < leds.size(); ++i)
+        if (ledPending[i] && (now - ledLast[i] >= 12 || now - ledFirst[i] >= 40))
+        {
+            ledPending[i] = false;
+            changed |= leds[i] != ledNext[i];
+            leds[i] = ledNext[i];
+        }
+    if (changed)
+        repaint();
 }
 
 uint8_t PanelComponent::shown (int idx) const
@@ -274,6 +303,7 @@ uint8_t PanelComponent::shown (int idx) const
 
 void PanelComponent::timerCallback()
 {
+    commitLeds();
     animTime += getTimerInterval() / 1000.0;
     for (auto m : ledMode)
         if (m != LedMode::steady)
@@ -341,7 +371,7 @@ void PanelComponent::paint (juce::Graphics& g)
     title ("SAMPLE EDIT", 260, 430, 368);
     title ("PUSH ENTER", 450, 516, 356);
     title ("SAMPLING", 120, 230, 425);
-    title ("SAMPLE MODE", 395, 512, 425);
+    title ("SAMPLE MODE", modeLeft + 3 * (modeW + modeGap), modeLeft + 5 * modeW + 4 * modeGap, 425);
     title ("BANK", 392, 470, 478, 246, 463);                // over all five bank keys
     title ("DJ MODE", 380, 470, 525, -1, -1, true);
     // Over pad columns 1-2 and 3-4 (pads 78 wide, centred at 97, 191, 285, 378).
@@ -475,14 +505,33 @@ void PanelComponent::paint (juce::Graphics& g)
         if (c.sub.isNotEmpty())
         {
             // The SHIFT function, printed under the key (boxed under pads).
-            auto s = r.withY (r.getBottom() + r.getHeight() * 0.06f).withHeight (juce::jmax (10.0f, getHeight() / panelH * 3.0f));
-            if (c.type == PanelControl::Type::button)
-                s = s.expanded (r.getWidth() * 0.3f, 0.0f);     // may run wider than its key
+            const float h = juce::jmax (10.0f, getHeight() / panelH * 3.0f);
+            // Pads and the column beside them: centred in the gap to the
+            // next row (rows are 81 photo pixels apart, pads 62 tall).
+            const bool rowed = c.type == PanelControl::Type::pad || r.getHeight() > getHeight() / 915.0f * 50.0f;
+            const float gap = rowed ? 19.0f * getHeight() / 915.0f : r.getHeight() * 0.06f * 2.0f + h;
+            auto s = r.withY (r.getBottom() + (gap - h) / 2.0f).withHeight (h);
             g.setColour (textColour);
-            g.setFont (juce::FontOptions (s.getHeight() * 0.8f));
-            g.drawFittedText (c.sub, s.toNearestInt(), juce::Justification::centred, 1, 0.6f);
             if (c.type == PanelControl::Type::pad)
-                g.drawRect (s.reduced (2.0f, 0.0f), 1.0f);
+            {
+                auto box = s.reduced (2.0f, 0.0f);
+                g.drawRect (box, 1.0f);
+                // The text inside the box: a little narrower first, then smaller.
+                const auto inner = box.reduced (3.0f, 1.0f);
+                juce::Font f (juce::FontOptions (h * 0.8f));
+                f.setHorizontalScale (0.9f);
+                const float w = juce::GlyphArrangement::getStringWidth (f, c.sub);
+                if (w > inner.getWidth())
+                    f.setHeight (f.getHeight() * inner.getWidth() / w);
+                g.setFont (f);
+                g.drawText (c.sub, inner, juce::Justification::centred, false);
+            }
+            else
+            {
+                s = s.expanded (r.getWidth() * 0.3f, 0.0f);     // may run wider than its key
+                g.setFont (juce::FontOptions (h * 0.8f));
+                g.drawFittedText (c.sub, s.toNearestInt(), juce::Justification::centred, 1, 0.6f);
+            }
         }
         if (c.binding.kind == Binding::Kind::none || learningThis)
         {
@@ -805,12 +854,19 @@ void PanelComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::Mous
     const float delta = w.deltaY * (w.isReversed ? -1.0f : 1.0f);
     if (c->name == "VALUE")
     {
-        // One detent per wheel notch (JUCE reports ~0.1 per notch).
+        // One detent per wheel notch: Windows reports 120 units a notch,
+        // which JUCE gives as 120 * 0.5 / 256 (a fine-stepping wheel sends
+        // parts of that, which add up).
+#if JUCE_WINDOWS
+        constexpr float notch = 120.0f * 0.5f / 256.0f;
+#else
+        constexpr float notch = 0.1f;
+#endif
         wheelAccum += delta;
-        const int detents = (int) (wheelAccum / 0.1f);
+        const int detents = (int) (wheelAccum / notch);
         if (detents != 0)
         {
-            wheelAccum -= (float) detents * 0.1f;
+            wheelAccum -= (float) detents * notch;
             link.sendEncoder (detents);
             c->value = std::fmod (c->value + 0.04f * (float) detents + 10.0f, 1.0f);
             repaint();
