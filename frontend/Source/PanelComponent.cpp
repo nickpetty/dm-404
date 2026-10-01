@@ -650,7 +650,7 @@ juce::String PanelComponent::getTooltip()
     if (c->name == "VALUE")
         return "Drag or scroll to turn, click to push; right-click for MIDI learn";
     if (c->type == PanelControl::Type::knob)
-        return "Drag or scroll to turn; right-click for MIDI learn";
+        return "Drag or scroll to turn (Ctrl + scroll: faster); right-click for MIDI learn";
     if (c->type == PanelControl::Type::button)
         return c->latched ? "Held: click to release" : "Ctrl-click to hold; right-click for MIDI learn";
     return "Right-click for MIDI learn";
@@ -852,16 +852,16 @@ void PanelComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::Mous
     if (c == nullptr || c->type != PanelControl::Type::knob)
         return;
     const float delta = w.deltaY * (w.isReversed ? -1.0f : 1.0f);
+    // One wheel notch: Windows reports 120 units a notch, which JUCE gives
+    // as 120 * 0.5 / 256 (a fine-stepping wheel sends parts of that).
+#if JUCE_WINDOWS
+    constexpr float notch = 120.0f * 0.5f / 256.0f;
+#else
+    constexpr float notch = 0.1f;
+#endif
     if (c->name == "VALUE")
     {
-        // One detent per wheel notch: Windows reports 120 units a notch,
-        // which JUCE gives as 120 * 0.5 / 256 (a fine-stepping wheel sends
-        // parts of that, which add up).
-#if JUCE_WINDOWS
-        constexpr float notch = 120.0f * 0.5f / 256.0f;
-#else
-        constexpr float notch = 0.1f;
-#endif
+        // One detent per notch (parts add up).
         wheelAccum += delta;
         const int detents = (int) (wheelAccum / notch);
         if (detents != 0)
@@ -873,7 +873,9 @@ void PanelComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::Mous
         }
         return;
     }
-    setKnob (*c, c->value + delta * 0.25f);
+    // Knobs: 1/160 of a turn a notch, the firmware's finest step on most
+    // (one BPM on a tempo, 40-200); with Ctrl, 1/20.
+    setKnob (*c, c->value + delta / notch * (e.mods.isCtrlDown() ? 1.0f / 20.0f : 1.0f / 160.0f));
 }
 
 void PanelComponent::mouseUp (const juce::MouseEvent&)
