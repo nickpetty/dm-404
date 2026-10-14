@@ -13,6 +13,19 @@ An independent project: not affiliated with or endorsed by Roland (see
 > Program on first run: download it free from Roland's SP-404MKII support
 > page.
 
+## Getting it
+
+1. Download the latest `DM-404-VERSION-win64.zip` from
+   [Releases](https://github.com/nickpetty/dm-404/releases) and unzip it
+   anywhere. Keep the `qemu` folder next to `DM-404.exe`.
+2. Get the SP-404MKII System Program 5.52 from Roland's support page.
+3. Start `DM-404.exe` and give it the System Program (the zip, or the
+   `SP404MKII_APP1.bin` inside it) when it asks. It then makes a blank
+   internal drive and SD card, and the unit boots.
+4. Optional: copy `VST3\DM-404 Link.vst3` to your VST3 folder (for example
+   `%LOCALAPPDATA%\Programs\Common\VST3`) to use the unit in a DAW, and copy
+   `TouchOSC\DM-404.tosc` to your tablet or phone to play it from TouchOSC.
+
 ## What works
 
 - **The unit.** It boots to the main screen with blank drives or your own
@@ -49,8 +62,9 @@ An independent project: not affiliated with or endorsed by Roland (see
 - **USB port.** The unit's USB serial port, as the firmware presents it
   (Roland 0582:02E7), served as USB/IP, for tools such as Roland's app.
   Needs a USB/IP client (see below).
-- **Panel options.** A custom background picture and text colour, and a
-  debug drawer shown and hidden with the <kbd>`</kbd> key.
+- **Panel options.** A background picture (the default one, your own, or
+  none) and the text colour, and a debug drawer for development, hidden
+  until you press <kbd>`</kbd>.
 
 Not there yet:
 - The unit's USB audio and MIDI device. On the hardware that comes from the
@@ -149,13 +163,17 @@ git.
    - the app, with the emulator in `qemu/` beside it (stripped of debug
      info), its effects engine, and the MSYS2 runtime DLLs they need (found
      from their imports);
-   - the VST3;
+   - the VST3 and the TouchOSC layout;
    - this project's and every bundled component's licence texts,
      `THIRD-PARTY.txt`, and a `SOURCE.txt` pointing at the exact commit.
 
    ```bash
    python tools/package.py
    ```
+
+The TouchOSC layout, `frontend/Resources/DM-404.tosc`, is generated from the
+panel's positions; after moving controls, remake it with
+`python tools/touchosc_layout.py` (the app embeds it at build time).
 
 `CLAUDE.md` is the developer's notebook: how the hardware was worked out, the
 link protocols, and the debugging tools (`tools/run.sh`, `tools/mon.py`,
@@ -164,17 +182,20 @@ the Ghidra scripts, `tools/fxmap.py`, `tools/usbip_probe.py`, and more).
 ## Using it
 
 - **Pads** play when you click them: the upper part of a pad hits at full
-  velocity, lower down softer. **Knobs** turn by dragging or with the mouse
-  wheel. **VALUE** turns by dragging or the wheel, and a click pushes it
-  (enter).
+  velocity, lower down softer.
+- **Knobs** turn by dragging or with the mouse wheel: one notch is the
+  finest step (1 BPM when CTRL 1 sets a tempo; hold SHIFT for 0.1), and
+  Ctrl + wheel turns faster.
+- **VALUE** turns by dragging or the wheel (one step a notch), and a click
+  pushes it (enter).
 - **SHIFT**: a click holds it until the next key or pad, or hold the
   computer's Shift key. **Ctrl-click** any other key to hold it (for example
   MFX while choosing an effect), and click it again to let go.
 - **Unit menu**: the SD card window, take the card out or put it back, back
   up and restore the internal drive, restart, choose the System Program, and
   open the data folder.
-- **View menu**: the debug drawer (<kbd>`</kbd>), background image, text
-  colour.
+- **View menu**: the debug drawer (<kbd>`</kbd>), the background picture
+  (your own, the default or plain), and the text colour.
 - **MIDI learn**: right-click a control, choose *MIDI learn*, then press a
   key or pad or move a knob on your MIDI device (chosen under Options >
   MIDI IN). Keys and pads follow notes (pads with their velocity) or
@@ -193,7 +214,8 @@ the Ghidra scripts, `tools/fxmap.py`, `tools/usbip_probe.py`, and more).
   - audio device;
   - muting the app while a DAW plugin plays the unit;
   - the MIDI IN/OUT jack ports, and forgetting all MIDI learn mappings;
-  - the "DM-404" MIDI port.
+  - the "DM-404" MIDI port;
+  - TouchOSC: switching it on, its ports, and saving the layout.
 - **In a DAW**, put *DM-404 Link* on a track while the app runs.
 
 ## Licensing
