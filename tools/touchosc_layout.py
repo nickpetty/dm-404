@@ -74,9 +74,13 @@ def osc(path, var='x', send=True, receive=True):
             % (send, receive, cdata(var), partial('CONSTANT', 'STRING', path), partial('VALUE', 'FLOAT', var)))
 
 
+_ids = iter(range(1 << 30))
+
+
 def node(kind, props, values, messages='', children=''):
+    # IDs from the node's place, so the file only changes when the layout does.
     s = "<node ID='%s' type='%s'><properties>%s</properties><values>%s</values>" % (
-        uuid.uuid4(), kind, ''.join(sorted(props, key=lambda p: p.split('CDATA[')[1])), ''.join(values))
+        uuid.uuid5(uuid.NAMESPACE_URL, 'dm-404/touchosc/%d' % next(_ids)), kind, ''.join(sorted(props, key=lambda p: p.split('CDATA[')[1])), ''.join(values))
     if messages:
         s += '<messages>%s</messages>' % messages
     if children:
