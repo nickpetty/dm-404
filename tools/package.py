@@ -10,6 +10,7 @@ tools/build_frontend.sh first. Lays out build/dist/DM-404-VERSION-win64/:
     qemu/sp404fx.dll                the effects engine
     qemu/*.dll                      the MSYS2 runtime DLLs the two need
     VST3/DM-404 Link.vst3/        the DAW plugin
+    TouchOSC/DM-404.tosc          the TouchOSC layout
     README.md, LICENSE, LICENSES/   this project's
     THIRD-PARTY.txt                 what else is inside, its licences, sources
     third-party-licenses/           those licences' texts
@@ -115,6 +116,8 @@ def main():
     os.makedirs(os.path.join(out, 'qemu'))
     shutil.copy2(app, out)
     shutil.copytree(vst3, os.path.join(out, 'VST3', os.path.basename(vst3)))
+    os.makedirs(os.path.join(out, 'TouchOSC'))
+    shutil.copy2(os.path.join(ROOT, 'frontend', 'Resources', 'DM-404.tosc'), os.path.join(out, 'TouchOSC'))
 
     # The emulator, without its debug info (100 MB of it), and the engine.
     q = os.path.join(out, 'qemu', 'qemu-system-arm.exe')

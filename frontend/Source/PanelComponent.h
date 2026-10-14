@@ -92,6 +92,21 @@ public:
     // turns with a controller and pushes with a note.
     void fromMidi (const juce::String& control, bool note, int value, MidiLearn::Mode mode);
 
+    // OSC (OscControl.h): a control by name with a 0-1 value. Keys and pads
+    // are held while it is above 0 (pads at that velocity), knobs set to
+    // it, VALUE pushed while it is above 0. turnValue turns VALUE.
+    void fromOsc (const juce::String& control, float v);
+    void turnValue (int detents);
+    // What the panel shows, for OSC to send back: each key's and pad's LED
+    // (level 0-1 and its colour as drawn) and each knob's position (level).
+    struct Shown
+    {
+        juce::String name;
+        PanelControl::Type type;
+        float level, r, g, b;
+    };
+    std::vector<Shown> shownState() const;
+
     // An LED packet from the firmware: "01 page idx value". Every page
     // writes the same LED and the latest write wins; the page is how it
     // shows: 0 lit (a key, a playing pad), 1 the resting level (0x1f: the

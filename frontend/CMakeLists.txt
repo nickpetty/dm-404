@@ -26,7 +26,8 @@ juce_add_gui_app(DM404
 juce_generate_juce_header(DM404)
 
 # The panel's bindings, built in (a development run reads the repo's copy).
-juce_add_binary_data(DM404Data SOURCES panel.json Resources/background.png Resources/icon.png)
+juce_add_binary_data(DM404Data SOURCES panel.json Resources/background.png Resources/icon.png
+    Resources/DM-404.tosc)
 
 # FatFs (ChaN, BSD-style licence): the drive images.
 add_library(fatfs STATIC

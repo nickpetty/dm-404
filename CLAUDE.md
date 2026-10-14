@@ -187,6 +187,17 @@ any number of inputs). MIDI learn (Frontend/Source/MidiLearn.h, right-click a co
 CCs from those inputs to panel controls, by name, in the settings (midiMap); mapped messages work the
 panel (PanelComponent::fromMidi) and do not reach the unit. Right-click's "Learn hardware binding"
 (panel.json, from the debug drawer's raw inputs) is offered only while the drawer is open.
+OSC control (Frontend/Source/OscControl.h, Options > TouchOSC, off by
+default): UDP in on 8000 (/dm404/key/<id>, /dm404/pad/<n>, /dm404/knob/<id>,
+/dm404/value[/step|/push], /dm404/sync), and back at 9000 to every sender
+heard in the last minute, 25 times a second, what changed: /dm404/led/<id>,
+/dm404/led/pad/<n> (level, r, g, b), knobs moved from elsewhere. <id> is the
+printed name lower-cased, other characters as "_". tools/touchosc_layout.py
+writes frontend/Resources/DM-404.tosc (zlib-compressed XML, lexml 5, node
+shapes copied from files TouchOSC's editor saved; each key is a momentary
+button with a non-interactive LED button over it; pads colour theirs with a
+small Lua onReceiveOSC). Checked with py2tosc's validator; not yet in
+TouchOSC itself.
 It also makes a MIDI port named "DM-404" (never the Roland/SP-404
 name) as the unit's USB MIDI (cable 8 in, bit 3 out): JUCE createNewDevice
 on macOS and Linux; on Windows, Frontend/Source/WinMidi.cpp through Windows

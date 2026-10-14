@@ -558,6 +558,56 @@ void PanelComponent::paint (juce::Graphics& g)
     }
 }
 
+void PanelComponent::fromOsc (const juce::String& control, float v)
+{
+    for (auto& c : controls)
+        if (c.name == control)
+        {
+            if (c.type == PanelControl::Type::knob && c.name != "VALUE")
+                setKnob (c, juce::jlimit (0.0f, 1.0f, v));
+            else
+                // As a note at that velocity (VALUE: its push).
+                fromMidi (control, true, v > 0.0f ? juce::jlimit (1, 127, juce::roundToInt (v * 127.0f)) : 0,
+                          MidiLearn::Mode::absolute);
+            return;
+        }
+}
+
+void PanelComponent::turnValue (int detents)
+{
+    link.sendEncoder (detents);
+    for (auto& c : controls)
+        if (c.name == "VALUE")
+            c.value = std::fmod (c.value + 0.04f * (float) detents + 10.0f, 1.0f);
+    repaint();
+}
+
+std::vector<PanelComponent::Shown> PanelComponent::shownState() const
+{
+    std::vector<Shown> out;
+    for (auto& c : controls)
+    {
+        if (c.type == PanelControl::Type::knob)
+            out.push_back ({ c.name, c.type, c.value, 0, 0, 0 });
+        else if (c.type == PanelControl::Type::pad)
+        {
+            const int base = (c.name.getIntValue() - 1) * 3;
+            if (base < 0 || base + 2 >= 0x30)
+                continue;
+            const float r = shown (base) / 255.0f, g = shown (base + 1) / 255.0f, b = shown (base + 2) / 255.0f;
+            out.push_back ({ c.name, c.type, juce::jmax (r, g, b), r, g, b });
+        }
+        else
+        {
+            const float level = c.led >= 0 ? shown (c.led) / 255.0f : 0.0f;
+            const bool red = c.name == "REC" || c.name == "RESAMPLE" || c.name == "DEL";
+            const auto colour = red ? juce::Colour (0xffff2a3a) : accent();
+            out.push_back ({ c.name, c.type, level, colour.getFloatRed(), colour.getFloatGreen(), colour.getFloatBlue() });
+        }
+    }
+    return out;
+}
+
 void PanelComponent::setMidiLearning (const juce::String& control)
 {
     midiLearning = control;

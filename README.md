@@ -38,6 +38,8 @@ An independent project: not affiliated with or endorsed by Roland (see
   - A "DM-404" MIDI port of the app's own: built in on macOS and Linux; on
     Windows it needs Windows MIDI Services (see below).
   - MIDI clock in and out; the unit follows tempo.
+- **TouchOSC.** Play the panel from a tablet or phone over Wi-Fi, with the
+  LEDs and knobs following along; a ready-made layout comes with the app.
 - **DAW plugin (DM-404 Link, VST3).** It puts the unit in a DAW track:
   - The track's audio and MIDI go in.
   - The unit's output and MIDI come back, in sync, with the plugin's latency
@@ -180,6 +182,13 @@ the Ghidra scripts, `tools/fxmap.py`, `tools/usbip_probe.py`, and more).
   encoder and pushes with a note. Mapped notes and controls work the panel
   instead of playing the unit; the rest still play it. Right-click again
   to forget a mapping.
+- **TouchOSC**: in DM-404, open *Options > TouchOSC...*, switch it on and
+  save the layout (it is also in the release's `TouchOSC` folder). In
+  TouchOSC, set connection 1 to OSC over UDP, host your computer's address
+  (the window shows it), send port 8000, receive port 9000, and open the
+  layout. Allow DM-404 on private networks if Windows asks. Other OSC apps
+  work too; the addresses are listed in `frontend/Source/OscControl.h`
+  (`/dm404/pad/1`, `/dm404/key/bus_fx`, `/dm404/knob/ctrl_1`, ...).
 - **Options menu**:
   - audio device;
   - muting the app while a DAW plugin plays the unit;

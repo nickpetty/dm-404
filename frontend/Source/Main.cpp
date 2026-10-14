@@ -4,6 +4,7 @@
 #include "Storage.h"
 #include "DawBridge.h"
 #include "MidiPorts.h"
+#include "OscControl.h"
 
 // First run: Roland's System Program is not ours to ship, so the user
 // points the app at the one they downloaded.
@@ -60,6 +61,114 @@ private:
     juce::TextButton choose { "Choose System Program..." };
     std::unique_ptr<juce::FileChooser> chooser;
 };
+// Options > TouchOSC: OSC control on or off, its ports, where to point
+// TouchOSC, and the layout to load into it.
+class OscWindow : public juce::Component, private juce::Timer
+{
+public:
+    explicit OscWindow (OscControl& o) : osc (o)
+    {
+        enable.setButtonText ("Control from TouchOSC (OSC over your network)");
+        enable.setToggleState (osc.isEnabled(), juce::dontSendNotification);
+        enable.onClick = [this] { osc.setEnabled (enable.getToggleState()); refresh(); };
+        addAndMakeVisible (enable);
+        for (auto* e : { &inPort, &outPort })
+        {
+            e->setInputRestrictions (5, "0123456789");
+            e->onFocusLost = e->onReturnKey = [this] { applyPorts(); };
+            addAndMakeVisible (*e);
+        }
+        inPort.setText (juce::String (osc.listenPort()), false);
+        outPort.setText (juce::String (osc.replyPort()), false);
+        inLabel.setText ("Listen on port", juce::dontSendNotification);
+        outLabel.setText ("Reply to port", juce::dontSendNotification);
+        addAndMakeVisible (inLabel);
+        addAndMakeVisible (outLabel);
+        save.setButtonText ("Save the TouchOSC layout...");
+        save.onClick = [this] { saveLayout(); };
+        addAndMakeVisible (save);
+        for (auto* l : { &help, &status })
+        {
+            l->setJustificationType (juce::Justification::topLeft);
+            l->setColour (juce::Label::textColourId, juce::Colours::lightgrey);
+            addAndMakeVisible (*l);
+        }
+        juce::StringArray ips;
+        for (auto& ip : juce::IPAddress::getAllAddresses (false))
+            if (ip != juce::IPAddress::local())
+                ips.add (ip.toString());
+        help.setText ("In TouchOSC, open Connections > OSC and set connection 1 to UDP, "
+                      "host " + (ips.isEmpty() ? juce::String ("this computer's address") : ips.joinIntoString (" or "))
+                          + ", send port " + juce::String (osc.listenPort()) + ", receive port "
+                          + juce::String (osc.replyPort()) + ". Then open the layout (save it below and copy "
+                      "it to your tablet or phone). Windows may ask whether DM-404 may use the network: "
+                      "allow it on private networks.",
+                      juce::dontSendNotification);
+        setSize (460, 330);
+        refresh();
+        startTimerHz (2);
+    }
+
+    void resized() override
+    {
+        auto r = getLocalBounds().reduced (12);
+        enable.setBounds (r.removeFromTop (26));
+        r.removeFromTop (6);
+        auto row = [&r] (juce::Label& l, juce::TextEditor& e)
+        {
+            auto line = r.removeFromTop (24);
+            l.setBounds (line.removeFromLeft (110));
+            e.setBounds (line.removeFromLeft (70));
+            r.removeFromTop (4);
+        };
+        row (inLabel, inPort);
+        row (outLabel, outPort);
+        r.removeFromTop (4);
+        help.setBounds (r.removeFromTop (110));
+        save.setBounds (r.removeFromTop (26).removeFromLeft (220));
+        r.removeFromTop (8);
+        status.setBounds (r);
+    }
+
+private:
+    void timerCallback() override { refresh(); }
+    void refresh() { status.setText (osc.status(), juce::dontSendNotification); }
+
+    void applyPorts()
+    {
+        const int in = inPort.getText().getIntValue(), out = outPort.getText().getIntValue();
+        if (in > 0 && in < 65536 && out > 0 && out < 65536 && (in != osc.listenPort() || out != osc.replyPort()))
+            osc.setPorts (in, out);
+        inPort.setText (juce::String (osc.listenPort()), false);
+        outPort.setText (juce::String (osc.replyPort()), false);
+        refresh();
+    }
+
+    void saveLayout()
+    {
+        chooser = std::make_unique<juce::FileChooser> (
+            "Save the TouchOSC layout",
+            juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("DM-404.tosc"), "*.tosc");
+        chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::warnAboutOverwriting,
+                              [] (const juce::FileChooser& fc)
+        {
+            auto f = fc.getResult();
+            if (f == juce::File())
+                return;
+            if (! f.replaceWithData (BinaryData::DM404_tosc, (size_t) BinaryData::DM404_toscSize))
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "TouchOSC",
+                                                        "Could not write " + f.getFullPathName());
+        });
+    }
+
+    OscControl& osc;
+    juce::ToggleButton enable;
+    juce::TextEditor inPort, outPort;
+    juce::Label inLabel, outLabel, help, status;
+    juce::TextButton save;
+    std::unique_ptr<juce::FileChooser> chooser;
+};
+
 
 // The window: the SP-404MKII panel, with the debug drawer beside it.
 class MainComponent : public juce::Component,
@@ -138,6 +247,8 @@ public:
         panel.onMidiForget = [this] (const juce::String& c) { midiLearn->forget (c); };
         panel.midiMapping = [this] (const juce::String& c) { return midiLearn->describe (c); };
         midiPorts = std::make_unique<MidiPorts> (link, *settings, *midiLearn);
+        // OSC control (TouchOSC): off until switched on in the Options menu.
+        osc = std::make_unique<OscControl> (panel, *settings);
         link.onUnitMidi = [this] (uint32_t frame, const uint8_t* p)
         {
             if ((p[0] >> 4) & usbmidi::usbBit)
@@ -188,6 +299,7 @@ public:
         link.stop();
         daw.reset();            // after the link thread, which feeds it
         midiPorts.reset();
+        osc.reset();
     }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colours::black); }
@@ -296,7 +408,7 @@ public:
     // The menu bar.
     enum MenuIds { sdWindowId = 1, sdToggleId, restartId, backupId, restoreId, openDataId, chooseFirmwareId,
                    debugDrawerId, audioSettingsId, muteForDawId, backgroundId, resetBackgroundId, defaultBackgroundId,
-                   textColourId, resetTextColourId, virtualMidiId, midiServicesId, forgetMidiId,
+                   textColourId, resetTextColourId, virtualMidiId, midiServicesId, forgetMidiId, oscId,
                    midiInBase = 1000, midiOutBase = 2000 };     // + device index + 1 (0: none)
 
     juce::StringArray getMenuBarNames() override { return { "Unit", "View", "Options" }; }
@@ -350,6 +462,8 @@ public:
             m.addSubMenu ("MIDI IN (plays the unit; MIDI learn)", in);
             m.addSubMenu ("MIDI OUT (from the unit)", out);
             m.addItem (forgetMidiId, "Forget all MIDI learn mappings", ! midiLearn->empty());
+            m.addSeparator();
+            m.addItem (oscId, "TouchOSC...", true, osc->isEnabled());
             // Its USB MIDI as a MIDI device of its own; what is wrong, if anything.
             const auto portStatus = midiPorts->virtualStatus();
             m.addItem (virtualMidiId, "MIDI port \"DM-404\"" + (portStatus.isEmpty() ? juce::String() : " (" + portStatus + ")"),
@@ -409,6 +523,7 @@ public:
             case textColourId:     chooseTextColour(); break;
             case virtualMidiId:    midiPorts->setVirtual (! midiPorts->wantsVirtual()); break;
             case forgetMidiId:     midiLearn->forgetAll(); break;
+            case oscId:            showOsc(); break;
             case midiServicesId:   juce::URL ("https://aka.ms/midi").launchInDefaultBrowser(); break;
             case resetTextColourId:
                 panel.setTextColour (PanelComponent::defaultTextColour());
@@ -453,6 +568,18 @@ public:
             settings->setValue ("background", dest.getFullPathName());
             settings->saveIfNeeded();
         });
+    }
+
+    void showOsc()
+    {
+        juce::DialogWindow::LaunchOptions o;
+        o.content.setOwned (new OscWindow (*osc));
+        o.dialogTitle = "TouchOSC";
+        o.dialogBackgroundColour = juce::Colour (0xff1c1d20);
+        o.escapeKeyTriggersCloseButton = true;
+        o.useNativeTitleBar = true;
+        o.resizable = false;
+        o.launchAsync();
     }
 
     void chooseTextColour()
@@ -895,6 +1022,7 @@ private:
     std::unique_ptr<DawBridge> daw;
     std::unique_ptr<MidiLearn> midiLearn;         // before midiPorts, which uses it
     std::unique_ptr<MidiPorts> midiPorts;
+    std::unique_ptr<OscControl> osc;
     juce::String lastPortStatus { "?" };
 
     // A line in dm-404.log in the data folder.
