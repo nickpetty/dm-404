@@ -684,10 +684,7 @@ void PanelComponent::fromMidi (const juce::String& control, bool note, int value
     if (down)
         press (*c, true, note ? (float) value / 127.0f : 1.0f);
     else
-    {
-        press (*c, false);
-        releaseShiftLatch();
-    }
+        letGo (*c, true);
 }
 
 juce::String PanelComponent::getTooltip()
@@ -717,6 +714,11 @@ PanelControl* PanelComponent::hit (juce::Point<float> p)
 void PanelComponent::press (PanelControl& c, bool down, float velocity)
 {
     c.pressed = down;
+    if (down)
+    {
+        c.downAt = juce::Time::getMillisecondCounter();
+        ++c.presses;
+    }
     const auto& b = c.binding;
     if (b.kind == Binding::Kind::key)
         link.sendKey (b.row, b.col, down);
@@ -746,6 +748,38 @@ void PanelComponent::press (PanelControl& c, bool down, float velocity)
         link.sendKnob (b.adc, b.channel, b.mux, value);
     }
     repaint();
+}
+
+void PanelComponent::letGo (PanelControl& c, bool endShiftLatch)
+{
+    // The firmware scans keys and pads every few ms and misses a press
+    // held less than about 15 ms (measured on a pad: 10 ms never played,
+    // 20 ms did). A tap on a touch screen, over Remote Desktop especially,
+    // can come down and up within a millisecond, so every press is held
+    // at least this long; a clicked SHIFT goes after it.
+    constexpr uint32_t minHoldMs = 40;
+    const auto held = juce::Time::getMillisecondCounter() - c.downAt;
+    if (held >= minHoldMs)
+    {
+        press (c, false);
+        if (endShiftLatch)
+            releaseShiftLatch();
+        return;
+    }
+    const auto index = (size_t) (&c - controls.data());
+    juce::Timer::callAfterDelay ((int) (minHoldMs - held),
+                                 [safe = juce::Component::SafePointer<PanelComponent> (this),
+                                  index, presses = c.presses, endShiftLatch]
+    {
+        if (safe == nullptr || index >= safe->controls.size())
+            return;
+        auto& c2 = safe->controls[index];
+        if (c2.presses != presses || ! c2.pressed)
+            return;     // pressed again since: that press lets go itself
+        safe->press (c2, false);
+        if (endShiftLatch)
+            safe->releaseShiftLatch();
+    });
 }
 
 void PanelComponent::setKnob (PanelControl& c, float v)
@@ -835,7 +869,14 @@ void PanelComponent::mouseDown (const juce::MouseEvent& e)
     }
     if (c->name == "SHIFT")
     {
+        // Latched by a click; while a finger (or the button) stays on it, it
+        // holds for every key or pad pressed meanwhile, until let go.
         shiftLatched = ! shiftLatched;
+        if (shiftLatched)
+        {
+            touches[e.source.getIndex()] = { c, 0, 0, false };
+            shiftUsed = false;
+        }
         updateShift();
         return;
     }
@@ -855,17 +896,12 @@ void PanelComponent::mouseDown (const juce::MouseEvent& e)
         press (*c, true);
         return;
     }
-    active = c;
+    // Each finger on a touch screen is its own source, so pads and keys
+    // can be held together (SHIFT or a bank key and a pad).
+    touches[e.source.getIndex()] = { c, c->value, 0, false };
     if (c->name == "VALUE")
-    {
-        // An endless encoder: dragging turns it, a click pushes it.
-        encoderSent = 0;
-        encoderMoved = false;
-        return;
-    }
-    if (c->type == PanelControl::Type::knob)
-        dragStartValue = c->value;
-    else
+        return;     // an endless encoder: dragging turns it, a click pushes it
+    if (c->type != PanelControl::Type::knob)
     {
         // Pads: the upper 60% hits at full velocity (a firm hit on the
         // unit); below that, softer towards the bottom edge.
@@ -877,21 +913,25 @@ void PanelComponent::mouseDown (const juce::MouseEvent& e)
 
 void PanelComponent::mouseDrag (const juce::MouseEvent& e)
 {
-    if (active != nullptr && active->name == "VALUE")
+    auto it = touches.find (e.source.getIndex());
+    if (it == touches.end())
+        return;
+    auto& t = it->second;
+    if (t.control->name == "VALUE")
     {
         const int detents = -e.getDistanceFromDragStartY() / 12;
-        if (detents != encoderSent)
+        if (detents != t.encoderSent)
         {
-            link.sendEncoder (detents - encoderSent);
-            active->value = std::fmod (active->value + 0.04f * (detents - encoderSent) + 10.0f, 1.0f);
-            encoderSent = detents;
-            encoderMoved = true;
+            link.sendEncoder (detents - t.encoderSent);
+            t.control->value = std::fmod (t.control->value + 0.04f * (detents - t.encoderSent) + 10.0f, 1.0f);
+            t.encoderSent = detents;
+            t.encoderMoved = true;
             repaint();
         }
         return;
     }
-    if (active != nullptr && active->type == PanelControl::Type::knob)
-        setKnob (*active, dragStartValue - e.getDistanceFromDragStartY() / 200.0f);
+    if (t.control->type == PanelControl::Type::knob)
+        setKnob (*t.control, t.dragStartValue - e.getDistanceFromDragStartY() / 200.0f);
 }
 
 void PanelComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
@@ -928,14 +968,29 @@ void PanelComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::Mous
     setKnob (*c, c->value + delta / notch * (e.mods.isCtrlDown() ? 1.0f / 20.0f : 1.0f / 160.0f));
 }
 
-void PanelComponent::mouseUp (const juce::MouseEvent&)
+void PanelComponent::mouseUp (const juce::MouseEvent& e)
 {
-    if (active != nullptr && active->name == "VALUE")
+    auto it = touches.find (e.source.getIndex());
+    if (it == touches.end())
+        return;
+    const auto t = it->second;
+    touches.erase (it);
+    if (t.control->name == "SHIFT")
     {
-        if (! encoderMoved && active->binding.kind == Binding::Kind::key)
+        if (shiftUsed)
+        {
+            shiftLatched = false;
+            updateShift();
+            repaint();
+        }
+        return;
+    }
+    if (t.control->name == "VALUE")
+    {
+        if (! t.encoderMoved && t.control->binding.kind == Binding::Kind::key)
         {
             // A click pushes it: the push switch is a key in the matrix.
-            const auto b = active->binding;
+            const auto b = t.control->binding;
             link.sendKey (b.row, b.col, true);
             juce::Timer::callAfterDelay (120, [this, b]
             {
@@ -943,15 +998,10 @@ void PanelComponent::mouseUp (const juce::MouseEvent&)
                 releaseShiftLatch();
             });
         }
-        active = nullptr;
         return;
     }
-    if (active != nullptr && active->type != PanelControl::Type::knob)
-    {
-        press (*active, false);
-        releaseShiftLatch();
-    }
-    active = nullptr;
+    if (t.control->type != PanelControl::Type::knob)
+        letGo (*t.control, true);
 }
 
 void PanelComponent::releaseShiftLatch()
@@ -961,6 +1011,12 @@ void PanelComponent::releaseShiftLatch()
     // keeps it.
     if (! shiftLatched)
         return;
+    for (auto& [source, t] : touches)
+        if (t.control != nullptr && t.control->name == "SHIFT")
+        {
+            shiftUsed = true;       // still held: it goes when let go
+            return;
+        }
     shiftLatched = false;
     updateShift();
     repaint();

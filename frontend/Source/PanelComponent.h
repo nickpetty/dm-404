@@ -35,6 +35,8 @@ struct PanelControl
     bool pressed = false;
     bool latched = false;               // ctrl-clicked: held until clicked again
     float value = 0.5f;                 // knobs, 0-1
+    uint32_t downAt = 0;                // when it was last pressed (ms counter)
+    uint32_t presses = 0;               // counts presses, for a delayed let-go
 };
 
 class OledView : public juce::Component
@@ -155,18 +157,26 @@ private:
     EmulatorLink& link;
     OledView oled;
     std::vector<PanelControl> controls;
-    PanelControl* active = nullptr;
+    void letGo (PanelControl&, bool endShiftLatch);
+
+    // What each pointer holds: the mouse, or each finger on a touch screen.
+    struct Touch
+    {
+        PanelControl* control = nullptr;
+        float dragStartValue = 0;
+        int encoderSent = 0;
+        bool encoderMoved = false;
+    };
+    std::map<int, Touch> touches;       // by JUCE input source index
     PanelControl* learning = nullptr;
-    float dragStartValue = 0;
-    int encoderSent = 0;
     bool shiftLatched = false, shiftKeyboard = false, shiftMidi = false;
+    bool shiftUsed = false;             // a key or pad went while SHIFT was held down
     bool bindingLearn = false;
     juce::String midiLearning, midiMessage;     // learning; what was learnt, shown a while
     uint32_t midiMessageUntil = 0;
     std::map<juce::String, int> lastMidiValue;  // VALUE from an absolute knob
     void updateShift();
     void releaseShiftLatch();
-    bool encoderMoved = false;
     float wheelAccum = 0.0f;
     // LED levels as the firmware sends them to the BMC, "01 00 idx value":
     // 0x00-0x2f the pads as RGB triplets, 0x30 on the buttons.
